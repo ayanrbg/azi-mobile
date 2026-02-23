@@ -122,39 +122,59 @@ function verifyToken(token) {
     }
 }
 
-wss.on('connection', (ws, req) => {
+wss.on('connection', async (ws, req) => {
+
     const query = url.parse(req.url, true).query;
     const token = query.token;
 
-    const user = verifyToken(token);
-
-    if (!user) {
-        ws.close();
-        return;
+    if (!token) {
+        ws.send(JSON.stringify({
+            type: "authResult",
+            success: false
+        }));
+        return ws.close();
     }
 
-    ws.user = user;
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    console.log('User connected:', user.nickname);
+        const result = await pool.query(
+            "SELECT id, nickname, balance FROM users WHERE id = $1",
+            [decoded.id]
+        );
 
-    // ⬇️ ВАЖНО
-    // Здесь оставляешь СВОЮ старую логику сообщений
-    ws.on('message', (message) => {
-        const data = JSON.parse(message);
+        if (result.rows.length === 0) {
+            ws.send(JSON.stringify({
+                type: "authResult",
+                success: false
+            }));
+            return ws.close();
+        }
 
-        // 👇 вставь свою старую обработку
-        console.log('Message:', data);
+        const user = result.rows[0];
 
-        // пример ответа
+        ws.user = user;
+        ws.isAuthenticated = true;
+
         ws.send(JSON.stringify({
-            type: "pong",
-            message: "server response preserved"
+            type: "authResult",
+            success: true,
+            user: {
+                id: user.id.toString(),
+                name: user.nickname,
+                balance: user.balance
+            }
         }));
-    });
 
-    ws.on('close', () => {
-        console.log('User disconnected:', user.nickname);
-    });
+        console.log("User connected:", user.nickname);
+
+    } catch (err) {
+        ws.send(JSON.stringify({
+            type: "authResult",
+            success: false
+        }));
+        ws.close();
+    }
 });
 
 server.listen(PORT, () => {
