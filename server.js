@@ -296,9 +296,17 @@ if (data.type === "ready") {
 
     room.toggleReady(ws.user.id.toString());
 }
-if (data.type === "discardCard") {
+if (data.type === "decidePlaying") {
 
-    if (!ws.currentRoom) return;
+    const room = roomManager.getRoom(ws.currentRoom);
+    if (!room || !room.game) return;
+
+    room.game.decidePlaying(
+        ws.user.id.toString(),
+        data.data.play
+    );
+}
+if (data.type === "discardCard") {
 
     const room = roomManager.getRoom(ws.currentRoom);
     if (!room || !room.game) return;
