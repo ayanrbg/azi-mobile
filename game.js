@@ -45,7 +45,11 @@ startDecisionPhase() {
             player.ws.send(JSON.stringify({
                 type: "requestPlayDecision",
                 phase: "deciding",
-                trump: this.trump,
+
+                // 👇 полная карта
+                trumpCard: this.trumpCard,
+                trump: this.trumpCard.suit,
+
                 pot: this.room.bet * this.players.length,
                 tricks: {},
                 yourCards: this.hands.get(player.id),
