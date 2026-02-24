@@ -95,9 +95,27 @@ discardCard(playerId, cardIndex) {
 
     if (cardIndex < 0 || cardIndex >= hand.length) return;
 
+    // удаляем карту
     hand.splice(cardIndex, 1);
+
     this.discardedPlayers.add(playerId);
 
+    // 🔹 СРАЗУ отправляем обновление ТОЛЬКО этому игроку
+    const player = this.players.find(p => p.id === playerId);
+
+    if (player && player.ws.readyState === 1) {
+        player.ws.send(JSON.stringify({
+            type: "gameUpdate",
+            phase: "discarding",
+            trump: this.trump,
+            pot: this.room.bet * this.players.length,
+            tricks: {},
+            yourCards: this.hands.get(playerId),
+            yourTricks: 0
+        }));
+    }
+
+    // 🔹 если все сбросили → bidding
     if (this.discardedPlayers.size === this.players.length) {
         this.startBiddingPhase();
     }

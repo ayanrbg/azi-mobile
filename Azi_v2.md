@@ -161,7 +161,33 @@ ws://localhost:3002?token=
   "type": "roomUpdate" // ready
 }
 ```
-### Раздача карт (запрос на удаление карты)
+### Раздача карт и решение на игру
+ОТ СЕРВЕРА
+```json
+{
+  "type": "requestPlayDecision",
+  "phase": "deciding"
+}
+```
+
+ОТ КЛИЕНТА
+```json
+{
+  "type": "decidePlaying",
+  "data": {
+    "play": true
+  }
+}
+```
+
+### Запрос на удаление карты
+ОТ СЕРВЕРА
+```json
+{
+  "type": "requestDiscard"
+}
+```
+
 ОТ КЛИЕНТА
 ```json
 {
@@ -169,11 +195,5 @@ ws://localhost:3002?token=
   "data": {
     "cardIndex": 0 // 0 1 2 3  (4 карты)
   }
-}
-```
-ОТ СЕРВЕРА
-```json
-{
-  "type": "requestDiscard"
 }
 ```
