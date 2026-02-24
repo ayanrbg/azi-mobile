@@ -175,6 +175,89 @@ wss.on('connection', async (ws, req) => {
         }));
         ws.close();
     }
+    ws.on('message', async (message) => {
+    const data = JSON.parse(message);
+
+    if (!ws.isAuthenticated) return;
+
+    // =========================
+    // GET ROOMS
+    // =========================
+    if (data.type === "getRooms") {
+        ws.send(JSON.stringify({
+            type: "roomsList",
+            rooms: roomManager.getAllRooms()
+        }));
+    }
+    if (data.type === "createRoom") {
+
+    const { name, bet, password, maxPlayers, icon } = data.data;
+
+    if (!name || !bet || !maxPlayers || !icon) {
+        return ws.send(JSON.stringify({
+            type: "error",
+            message: "Invalid room data"
+        }));
+    }
+
+    const room = roomManager.createRoom(
+        { name, bet, password, maxPlayers, icon },
+        ws.user
+    );
+
+    ws.currentRoom = room.id;
+
+    room.addPlayer({
+        ...ws.user,
+        ws
+    });
+
+    ws.send(JSON.stringify({
+        type: "roomCreated",
+        roomId: room.id
+    }));
+}
+if (data.type === "joinRoom") {
+
+    const { roomId, password } = data.data;
+
+    const room = roomManager.getRoom(roomId);
+
+    if (!room) {
+        return ws.send(JSON.stringify({
+            type: "error",
+            message: "Room not found"
+        }));
+    }
+
+    if (room.password && room.password !== password) {
+        return ws.send(JSON.stringify({
+            type: "error",
+            message: "Wrong password"
+        }));
+    }
+
+    try {
+        room.addPlayer({
+            ...ws.user,
+            ws
+        });
+
+        ws.currentRoom = room.id;
+
+        ws.send(JSON.stringify({
+            type: "joinedRoom",
+            room: room.getFullData()
+        }));
+
+    } catch (err) {
+        ws.send(JSON.stringify({
+            type: "error",
+            message: err.message
+        }));
+    }
+}
+});
 });
 
 server.listen(PORT, () => {
