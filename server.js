@@ -327,6 +327,16 @@ if (data.type === "bidAction") {
         data.data.amount || null
     );
 }
+if (data.type === "playCard") {
+
+    const room = roomManager.getRoom(ws.currentRoom);
+    if (!room || !room.game) return;
+
+    room.game.playCard(
+        ws.user.id.toString(),
+        data.data.cardIndex
+    );
+}
 });
 ws.on('close', () => {
 

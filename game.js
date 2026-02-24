@@ -17,6 +17,11 @@ class Game {
         this.dealCards();
         this.phase = "discard";
         this.startDecisionPhase();
+
+        this.currentTrick = [];
+        this.leadSuit = null;
+        this.currentPlayerIndex = 0; // кто ходит
+        this.completedTricks = 0;
     }
     requestDiscard() {
 
@@ -242,18 +247,47 @@ startPlayingPhase() {
 
     this.phase = "playing";
 
+    this.currentTrick = [];
+    this.leadSuit = null;
+    this.completedTricks = 0;
+
+    this.currentPlayerIndex = 0; // первый из activePlayers
+
+    this.broadcastPlayingState();
+    this.requestMove();
+}
+broadcastPlayingState() {
+
     this.players.forEach(player => {
-        player.ws.send(JSON.stringify({
-            type: "gameUpdate",
-            phase: "playing",
-            trump: this.trump,
-            pot: this.currentBet,
-            currentPlayer: this.activePlayers[0].id,
-            tricks: this.tricks,
-            yourCards: this.hands.get(player.id),
-            yourTricks: this.tricks[player.id] || 0
-        }));
+
+        if (player.ws.readyState === 1) {
+
+            player.ws.send(JSON.stringify({
+                type: "gameUpdate",
+                phase: "playing",
+                trump: this.trump,
+                pot: this.currentBet,
+                currentPlayer: this.activePlayers[this.currentPlayerIndex].id,
+                tricks: this.tricks,
+                yourCards: this.hands.get(player.id),
+                yourTricks: this.tricks[player.id] || 0,
+                currentTrick: this.currentTrick,
+                leadSuit: this.leadSuit
+            }));
+        }
     });
+}
+requestMove() {
+
+    const player = this.activePlayers[this.currentPlayerIndex];
+    if (!player) return;
+
+    const validCards = this.getValidCards(player.id);
+
+    player.ws.send(JSON.stringify({
+        type: "requestMove",
+        validCards
+    }));
 }
 createDeck() {
     const suits = ["H", "D", "C", "S"];
@@ -273,7 +307,173 @@ createDeck() {
 
     return deck;
 }
+getValidCards(playerId) {
 
+    const hand = this.hands.get(playerId);
+
+    if (!this.leadSuit) {
+        return hand.map((_, index) => index);
+    }
+
+    const sameSuitIndexes = hand
+        .map((card, index) => card.suit === this.leadSuit ? index : -1)
+        .filter(index => index !== -1);
+
+    if (sameSuitIndexes.length > 0) {
+        return sameSuitIndexes;
+    }
+
+    return hand.map((_, index) => index);
+}
+playCard(playerId, cardIndex) {
+
+    if (this.phase !== "playing") return;
+
+    const player = this.activePlayers[this.currentPlayerIndex];
+    if (!player || player.id !== playerId) return;
+
+    const hand = this.hands.get(playerId);
+    if (!hand) return;
+
+    const validCards = this.getValidCards(playerId);
+    if (!validCards.includes(cardIndex)) return;
+
+    const card = hand.splice(cardIndex, 1)[0];
+
+    if (!this.leadSuit) {
+        this.leadSuit = card.suit;
+    }
+
+    this.currentTrick.push({
+        playerId,
+        card
+    });
+
+    this.broadcastCardPlayed(playerId, card);
+
+    // если все сходили
+    if (this.currentTrick.length === this.activePlayers.length) {
+        this.finishTrick();
+        return;
+    }
+
+    this.nextTurn();
+}
+nextTurn() {
+
+    this.currentPlayerIndex++;
+
+    if (this.currentPlayerIndex >= this.activePlayers.length) {
+        this.currentPlayerIndex = 0;
+    }
+
+    this.broadcastPlayingState();
+    this.requestMove();
+}
+broadcastCardPlayed(playerId, card) {
+
+    this.players.forEach(player => {
+        player.ws.send(JSON.stringify({
+            type: "cardPlayed",
+            playerId,
+            card,
+            currentTrick: this.currentTrick,
+            leadSuit: this.leadSuit
+        }));
+    });
+}
+finishTrick() {
+
+    const winner = this.determineTrickWinner();
+
+    this.tricks[winner]++;
+
+    this.completedTricks++;
+
+    this.players.forEach(player => {
+        player.ws.send(JSON.stringify({
+            type: "trickComplete",
+            winner,
+            tricks: this.tricks
+        }));
+    });
+
+    // если кто-то взял 2 взятки — победа
+    if (this.tricks[winner] === 2) {
+        this.endGame(winner);
+        return;
+    }
+
+    // если 3 раунда и никто не взял 2 — Ази
+    if (this.completedTricks === 3) {
+        this.handleAzi();
+        return;
+    }
+
+    // новый раунд
+    this.currentPlayerIndex = this.activePlayers.findIndex(p => p.id === winner);
+    this.currentTrick = [];
+    this.leadSuit = null;
+
+    this.broadcastPlayingState();
+    this.requestMove();
+}
+determineTrickWinner() {
+
+    let winningCard = this.currentTrick[0];
+    let winnerId = winningCard.playerId;
+
+    for (let i = 1; i < this.currentTrick.length; i++) {
+
+        const current = this.currentTrick[i];
+
+        const isTrump = current.card.suit === this.trump;
+        const winningIsTrump = winningCard.card.suit === this.trump;
+
+        if (isTrump && !winningIsTrump) {
+            winningCard = current;
+            winnerId = current.playerId;
+            continue;
+        }
+
+        if (current.card.suit === winningCard.card.suit) {
+
+            if (this.getCardRankValue(current.card.rank) >
+                this.getCardRankValue(winningCard.card.rank)) {
+
+                winningCard = current;
+                winnerId = current.playerId;
+            }
+        }
+    }
+
+    return winnerId;
+}
+getCardRankValue(rank) {
+
+    const order = ["6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+    return order.indexOf(rank);
+}
+endGame(winnerId) {
+
+    this.phase = "finished";
+
+    this.players.forEach(player => {
+        player.ws.send(JSON.stringify({
+            type: "gameWinner",
+            winner: winnerId,
+            pot: this.currentBet * this.activePlayers.length
+        }));
+    });
+}
+handleAzi() {
+
+    this.players.forEach(player => {
+        player.ws.send(JSON.stringify({
+            type: "azi"
+        }));
+    });
+}
     shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
