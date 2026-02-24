@@ -124,43 +124,140 @@ startBiddingPhase() {
 
     this.phase = "bidding";
 
-    const firstPlayer = this.players[0];
+    this.baseBet = this.room.bet;
+    this.currentBet = this.baseBet;
+
+    this.activePlayers = [...this.players];
+    this.currentPlayerIndex = 0;
+
+    this.playerBids = {};
+    this.players.forEach(p => {
+        this.playerBids[p.id] = 0;
+    });
+
+    this.lastRaiser = null;
+    this.roundStartIndex = 0;
+
+    this.requestBid();
+}
+requestBid() {
+
+    const player = this.activePlayers[this.currentPlayerIndex];
+
+    if (!player) return;
+
+    player.ws.send(JSON.stringify({
+        type: "requestBid",
+        phase: "bidding",
+        trump: this.trump,
+        pot: this.currentBet * this.activePlayers.length,
+        currentBet: this.currentBet,
+        baseBet: this.baseBet,
+        minRaise: Math.floor(this.currentBet * 1.5),
+        currentPlayer: player.id,
+        yourCards: this.hands.get(player.id),
+        yourTricks: 0,
+        playerBids: this.playerBids
+    }));
+}
+bidAction(playerId, action, amount = null) {
+
+    const player = this.activePlayers[this.currentPlayerIndex];
+    if (!player || player.id !== playerId) return;
+
+    if (action === "raise") {
+
+        let newBet;
+
+        if (amount && amount > this.currentBet) {
+            newBet = amount;
+        } else {
+            newBet = Math.floor(this.currentBet * 1.5);
+        }
+
+        if (newBet <= this.currentBet) return;
+
+        this.currentBet = newBet;
+        this.playerBids[playerId] = newBet;
+
+        this.lastRaiser = playerId;
+        this.roundStartIndex = this.currentPlayerIndex;
+
+        this.nextPlayer();
+        return;
+    }
+
+    if (action === "pass") {
+
+        this.activePlayers.splice(this.currentPlayerIndex, 1);
+
+        // если остался 1 игрок — конец торгов
+        if (this.activePlayers.length === 1) {
+            this.startPlayingPhase();
+            return;
+        }
+
+        if (this.currentPlayerIndex >= this.activePlayers.length) {
+            this.currentPlayerIndex = 0;
+        }
+
+        this.requestBid();
+        return;
+    }
+}
+nextPlayer() {
+
+    this.currentPlayerIndex++;
+
+    if (this.currentPlayerIndex >= this.activePlayers.length) {
+        this.currentPlayerIndex = 0;
+    }
+
+    // если круг вернулся к последнему raiser → конец торгов
+    const currentPlayer = this.activePlayers[this.currentPlayerIndex];
+
+    if (this.lastRaiser && currentPlayer.id === this.lastRaiser) {
+        this.startPlayingPhase();
+        return;
+    }
+
+    this.requestBid();
+}
+startPlayingPhase() {
+
+    this.phase = "playing";
 
     this.players.forEach(player => {
-
-        if (player.ws.readyState === 1) {
-
-            player.ws.send(JSON.stringify({
-                type: "gameUpdate",
-                phase: "bidding",
-                trump: this.trump,
-                pot: this.room.bet * this.players.length,
-                currentPlayer: firstPlayer.id,
-                tricks: {},
-                yourCards: this.hands.get(player.id),
-                yourTricks: 0
-            }));
-        }
+        player.ws.send(JSON.stringify({
+            type: "gameUpdate",
+            phase: "playing",
+            trump: this.trump,
+            pot: this.currentBet,
+            currentPlayer: this.activePlayers[0].id,
+            tricks: this.tricks,
+            yourCards: this.hands.get(player.id),
+            yourTricks: this.tricks[player.id] || 0
+        }));
     });
 }
-    createDeck() {
-        const suits = ["H", "D", "C", "S"];
-        const ranks = ["6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+createDeck() {
+    const suits = ["H", "D", "C", "S"];
+    const ranks = ["6", "7", "8", "9", "10", "J", "Q", "K", "A"];
 
-        const deck = [];
+    const deck = [];
 
-        suits.forEach(suit => {
-            ranks.forEach(rank => {
-                deck.push({
-                    suit,
-                    rank,
-                    code: rank + suit
-                });
+    suits.forEach(suit => {
+        ranks.forEach(rank => {
+            deck.push({
+                suit,
+                rank,
+                code: rank + suit
             });
         });
+    });
 
-        return deck;
-    }
+    return deck;
+}
 
     shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
