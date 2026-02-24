@@ -161,8 +161,7 @@ startBiddingPhase() {
 
     this.lastRaiser = null;
 
-    // ❌ НЕ шлём broadcastBiddingState()
-    // ✅ Сразу запрос первому
+    // ❗ Только первому requestBid
     this.requestBid();
 }
 requestBid() {
@@ -187,10 +186,8 @@ requestBid() {
 }
 bidAction(playerId, action, amount = null) {
 
-    // ❗ БЛОКИРОВКА ЕСЛИ НЕ ФАЗА ТОРГОВ
-    if (this.phase !== "bidding") {
-        return;
-    }
+    if (this.phase !== "bidding") return;
+
     const player = this.activePlayers[this.currentPlayerIndex];
     if (!player || player.id !== playerId) return;
 
@@ -198,24 +195,20 @@ bidAction(playerId, action, amount = null) {
 
     if (action === "raise") {
 
-    let newBet;
+        let newBet;
 
-    if (amount && amount > this.currentBet) {
-        newBet = amount;
-    } else {
-        newBet = Math.floor(this.currentBet * 1.5);
+        if (amount && amount > this.currentBet) {
+            newBet = amount;
+        } else {
+            newBet = Math.floor(this.currentBet * 1.5);
+        }
+
+        if (newBet <= this.currentBet) return;
+
+        this.currentBet = newBet;
+        this.playerBids[playerId] = newBet;
+        this.lastRaiser = playerId;
     }
-
-    if (newBet <= this.currentBet) return;
-
-    this.currentBet = newBet;
-    this.playerBids[playerId] = newBet;
-
-    this.lastRaiser = playerId;
-
-    this.nextPlayer();
-    return;
-}
 
     if (action === "pass") {
 
@@ -229,19 +222,33 @@ bidAction(playerId, action, amount = null) {
         if (this.currentPlayerIndex >= this.activePlayers.length) {
             this.currentPlayerIndex = 0;
         }
-
-        this.requestBid();
-        return;
+    } else {
+        // если raise — просто переходим дальше
+        this.currentPlayerIndex++;
+        if (this.currentPlayerIndex >= this.activePlayers.length) {
+            this.currentPlayerIndex = 0;
+        }
     }
 
-    // 🔥 проверка окончания торгов
-    if (this.turnCount >= this.minTurns) {
+    // 🔥 ВАЖНО — после любого действия шлём всем gameUpdate
+    this.broadcastBiddingState();
+
+    // 🔥 Проверка окончания торгов
+    const currentPlayer = this.activePlayers[this.currentPlayerIndex];
+
+    if (
+        this.turnCount >= this.minTurns &&
+        (
+            !this.lastRaiser ||
+            currentPlayer.id === this.lastRaiser
+        )
+    ) {
         this.startPlayingPhase();
         return;
     }
 
-    this.nextPlayer();
-    this.broadcastBiddingState();
+    // 🔥 И только потом requestBid следующему
+    this.requestBid();
 }
 nextPlayer() {
 
