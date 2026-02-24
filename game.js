@@ -208,6 +208,11 @@ bidAction(playerId, action, amount = null) {
         this.currentBet = newBet;
         this.playerBids[playerId] = newBet;
         this.lastRaiser = playerId;
+
+        this.currentPlayerIndex++;
+        if (this.currentPlayerIndex >= this.activePlayers.length) {
+            this.currentPlayerIndex = 0;
+        }
     }
 
     if (action === "pass") {
@@ -222,32 +227,24 @@ bidAction(playerId, action, amount = null) {
         if (this.currentPlayerIndex >= this.activePlayers.length) {
             this.currentPlayerIndex = 0;
         }
-    } else {
-        // если raise — просто переходим дальше
-        this.currentPlayerIndex++;
-        if (this.currentPlayerIndex >= this.activePlayers.length) {
-            this.currentPlayerIndex = 0;
-        }
     }
 
-    // 🔥 ВАЖНО — после любого действия шлём всем gameUpdate
-    this.broadcastBiddingState();
-
-    // 🔥 Проверка окончания торгов
     const currentPlayer = this.activePlayers[this.currentPlayerIndex];
 
+    // 🔥 Проверяем окончание ДО отправки сообщений
     if (
         this.turnCount >= this.minTurns &&
-        (
-            !this.lastRaiser ||
-            currentPlayer.id === this.lastRaiser
-        )
+        this.lastRaiser &&
+        currentPlayer.id === this.lastRaiser
     ) {
         this.startPlayingPhase();
         return;
     }
 
-    // 🔥 И только потом requestBid следующему
+    // ✅ Теперь отправляем обновление всем
+    this.broadcastBiddingState();
+
+    // ✅ И только потом requestBid следующему
     this.requestBid();
 }
 nextPlayer() {
