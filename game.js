@@ -51,6 +51,7 @@ startDecisionPhase() {
 }
 decidePlaying(playerId, play) {
 
+    if (this.phase !== "deciding") return;
     this.playersDecisions.set(playerId, play);
 
     // ждём пока все ответят
@@ -89,6 +90,12 @@ startDiscardPhase() {
     });
 }
 discardCard(playerId, cardIndex) {
+
+    // ❗ Фаза должна быть discarding
+    if (this.phase !== "discarding") return;
+
+    // ❗ Игрок уже сбрасывал карту
+    if (this.discardedPlayers.has(playerId)) return;
 
     const hand = this.hands.get(playerId);
     if (!hand) return;
@@ -169,6 +176,10 @@ requestBid() {
 }
 bidAction(playerId, action, amount = null) {
 
+    // ❗ БЛОКИРОВКА ЕСЛИ НЕ ФАЗА ТОРГОВ
+    if (this.phase !== "bidding") {
+        return;
+    }
     const player = this.activePlayers[this.currentPlayerIndex];
     if (!player || player.id !== playerId) return;
 

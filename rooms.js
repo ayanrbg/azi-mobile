@@ -30,6 +30,9 @@ broadcastRoomUpdate() {
 }
 toggleReady(playerId) {
 
+    // ❗ Нельзя ready если игра уже идёт
+    if (this.status === "playing") return;
+    
     const player = this.players.find(p => p.id === playerId);
 
     if (!player) return;
