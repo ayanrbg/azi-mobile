@@ -458,21 +458,60 @@ endGame(winnerId) {
 
     this.phase = "finished";
 
+    const pot = this.currentBet * this.activePlayers.length;
+
     this.players.forEach(player => {
         player.ws.send(JSON.stringify({
             type: "gameWinner",
             winner: winnerId,
-            pot: this.currentBet * this.activePlayers.length
+            pot
         }));
     });
+
+    // ⏳ Небольшая пауза (1 секунда)
+    setTimeout(() => {
+        this.resetGame();
+    }, 1000);
 }
 handleAzi() {
+
+    this.phase = "finished";
 
     this.players.forEach(player => {
         player.ws.send(JSON.stringify({
             type: "azi"
         }));
     });
+
+    setTimeout(() => {
+        this.resetGame();
+    }, 1000);
+}
+resetGame() {
+
+    // новая колода
+    this.deck = this.createDeck();
+    this.shuffle(this.deck);
+
+    this.trumpCard = this.deck.pop();
+    this.trump = this.trumpCard.suit;
+
+    // сброс состояния
+    this.hands = new Map();
+    this.tricks = {};
+    this.currentTrick = [];
+    this.leadSuit = null;
+    this.completedTricks = 0;
+
+    // все игроки снова активны
+    this.players = this.room.players;
+    this.activePlayers = [...this.players];
+
+    // раздаём заново
+    this.dealCards();
+
+    // снова deciding
+    this.startDecisionPhase();
 }
     shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
