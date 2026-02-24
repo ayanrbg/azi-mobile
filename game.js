@@ -152,17 +152,12 @@ startBiddingPhase() {
         this.playerBids[p.id] = 0;
     });
 
-    this.turnCount = 0;
-
-    if (this.activePlayers.length === 2) {
-        this.minTurns = 3;
-    } else {
-        this.minTurns = this.activePlayers.length;
-    }
-
     this.lastRaiser = null;
 
-    // ❗ Только первому requestBid
+    // ❗ Сначала всем кроме первого — gameUpdate
+    this.broadcastBiddingStateExceptCurrent();
+
+    // ❗ Потом первому — requestBid
     this.requestBid();
 }
 requestBid() {
@@ -220,6 +215,33 @@ bidAction(playerId, action, amount = null) {
         return;
     }
 }
+broadcastBiddingStateExceptCurrent() {
+
+    const currentPlayerId = this.activePlayers[this.currentPlayerIndex].id;
+
+    this.players.forEach(player => {
+
+        // ❗ Пропускаем того, у кого сейчас ход
+        if (player.id === currentPlayerId) return;
+
+        if (player.ws.readyState === 1) {
+
+            player.ws.send(JSON.stringify({
+                type: "gameUpdate",
+                phase: "bidding",
+                trump: this.trump,
+                pot: this.currentBet * this.activePlayers.length,
+                currentBet: this.currentBet,
+                baseBet: this.baseBet,
+                currentPlayer: currentPlayerId,
+                tricks: this.tricks,
+                yourCards: this.hands.get(player.id),
+                yourTricks: this.tricks[player.id] || 0,
+                playerBids: this.playerBids
+            }));
+        }
+    });
+}
 nextBidTurn() {
 
     this.currentPlayerIndex++;
@@ -236,10 +258,10 @@ nextBidTurn() {
         return;
     }
 
-    // ❌ УБРАТЬ broadcastBiddingState()
-    // this.broadcastBiddingState();
+    // ✅ Сначала рассылаем gameUpdate всем кроме текущего
+    this.broadcastBiddingStateExceptCurrent();
 
-    // ✅ Отправляем только requestBid
+    // ✅ Потом отправляем requestBid текущему
     this.requestBid();
 }
 nextPlayer() {
