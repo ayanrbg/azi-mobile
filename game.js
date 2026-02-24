@@ -131,12 +131,19 @@ startBiddingPhase() {
     this.currentPlayerIndex = 0;
 
     this.playerBids = {};
-    this.players.forEach(p => {
+    this.activePlayers.forEach(p => {
         this.playerBids[p.id] = 0;
     });
 
+    this.turnCount = 0;
+
+    if (this.activePlayers.length === 2) {
+        this.minTurns = 3;
+    } else {
+        this.minTurns = this.activePlayers.length;
+    }
+
     this.lastRaiser = null;
-    this.roundStartIndex = 0;
 
     this.requestBid();
 }
@@ -161,10 +168,10 @@ requestBid() {
     }));
 }
 bidAction(playerId, action, amount = null) {
-
+this.turnCount++;
     const player = this.activePlayers[this.currentPlayerIndex];
     if (!player || player.id !== playerId) return;
-
+    
     if (action === "raise") {
 
         let newBet;
@@ -214,10 +221,17 @@ nextPlayer() {
         this.currentPlayerIndex = 0;
     }
 
-    // если круг вернулся к последнему raiser → конец торгов
     const currentPlayer = this.activePlayers[this.currentPlayerIndex];
 
-    if (this.lastRaiser && currentPlayer.id === this.lastRaiser) {
+    // ❗ Проверка окончания торгов
+    if (
+        this.activePlayers.length === 1 ||
+        (
+            this.turnCount >= this.minTurns &&
+            this.lastRaiser &&
+            currentPlayer.id === this.lastRaiser
+        )
+    ) {
         this.startPlayingPhase();
         return;
     }
