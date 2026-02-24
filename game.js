@@ -172,10 +172,10 @@ requestBid() {
     }));
 }
 bidAction(playerId, action, amount = null) {
-this.turnCount++;
+
     const player = this.activePlayers[this.currentPlayerIndex];
     if (!player || player.id !== playerId) return;
-    
+    this.turnCount++;    
     if (action === "raise") {
 
         let newBet;
@@ -219,6 +219,12 @@ this.turnCount++;
 }
 nextPlayer() {
 
+    // если остался один — он выиграл торги
+    if (this.activePlayers.length === 1) {
+        this.startPlayingPhase();
+        return;
+    }
+
     this.currentPlayerIndex++;
 
     if (this.currentPlayerIndex >= this.activePlayers.length) {
@@ -227,14 +233,11 @@ nextPlayer() {
 
     const currentPlayer = this.activePlayers[this.currentPlayerIndex];
 
-    // ❗ Проверка окончания торгов
+    // ✅ Условие окончания торгов
     if (
-        this.activePlayers.length === 1 ||
-        (
-            this.turnCount >= this.minTurns &&
-            this.lastRaiser &&
-            currentPlayer.id === this.lastRaiser
-        )
+        this.turnCount >= this.minTurns &&
+        this.lastRaiser &&
+        currentPlayer.id === this.lastRaiser
     ) {
         this.startPlayingPhase();
         return;
