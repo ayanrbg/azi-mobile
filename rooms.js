@@ -1,9 +1,10 @@
 const { randomUUID } = require('crypto');
-
+const Game = require('./game');
 
 class Room {
     constructor({ name, bet, password, maxPlayers, icon, owner }) {
         this.id = randomUUID();
+        this.game = new Game(this);
         this.name = name;
         this.bet = bet; // baseBet
         this.password = password || null;
@@ -36,6 +37,13 @@ toggleReady(playerId) {
     player.ready = !player.ready;
 
     this.broadcastRoomUpdate();
+    // если все ready и минимум 2 игрока
+    if (
+        this.players.length >= 2 &&
+        this.players.every(p => p.ready)
+    ) {
+        this.startGame();
+    }
 }
     addPlayer(player) {
 

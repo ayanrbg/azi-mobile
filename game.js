@@ -1,0 +1,82 @@
+class Game {
+
+    constructor(room) {
+        this.room = room;
+        this.players = room.players;
+
+        this.phase = "dealing";
+        this.deck = this.createDeck();
+        this.shuffle(this.deck);
+
+        this.trumpCard = this.deck.pop();
+        this.trump = this.trumpCard.suit;
+
+        this.hands = new Map();
+        this.tricks = {};
+
+        this.dealCards();
+    }
+
+    createDeck() {
+        const suits = ["H", "D", "C", "S"];
+        const ranks = ["6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+
+        const deck = [];
+
+        suits.forEach(suit => {
+            ranks.forEach(rank => {
+                deck.push({
+                    suit,
+                    rank,
+                    code: rank + suit
+                });
+            });
+        });
+
+        return deck;
+    }
+
+    shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    dealCards() {
+
+        this.players.forEach(player => {
+
+            const hand = [];
+
+            for (let i = 0; i < 4; i++) {
+                hand.push(this.deck.pop());
+            }
+
+            this.hands.set(player.id, hand);
+            this.tricks[player.id] = 0;
+        });
+
+        this.sendGameUpdate();
+    }
+
+    sendGameUpdate() {
+
+        this.players.forEach(player => {
+
+            if (player.ws.readyState === 1) {
+
+                player.ws.send(JSON.stringify({
+                    type: "gameUpdate",
+                    phase: this.phase,
+                    trump: this.trump,
+                    trumpCard: this.trumpCard,
+                    yourCards: this.hands.get(player.id),
+                    tricks: this.tricks
+                }));
+            }
+        });
+    }
+}
+
+module.exports = Game;
