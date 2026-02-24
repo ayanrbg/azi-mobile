@@ -27,6 +27,16 @@ broadcastRoomUpdate() {
         }
     });
 }
+toggleReady(playerId) {
+
+    const player = this.players.find(p => p.id === playerId);
+
+    if (!player) return;
+
+    player.ready = !player.ready;
+
+    this.broadcastRoomUpdate();
+}
     addPlayer(player) {
 
     // ❗ Проверка — уже в комнате?

@@ -287,6 +287,15 @@ if (data.type === "leaveRoom") {
         type: "leftRoom"
     }));
 }
+if (data.type === "ready") {
+
+    if (!ws.currentRoom) return;
+
+    const room = roomManager.getRoom(ws.currentRoom);
+    if (!room) return;
+
+    room.toggleReady(ws.user.id.toString());
+}
 });
 ws.on('close', () => {
 
