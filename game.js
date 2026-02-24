@@ -194,8 +194,9 @@ bidAction(playerId, action, amount = null) {
         this.lastRaiser = playerId;
         this.roundStartIndex = this.currentPlayerIndex;
 
-        this.nextPlayer();
+        
         this.broadcastBiddingState();
+        this.nextPlayer();
         return;
     }
 
@@ -235,13 +236,18 @@ nextPlayer() {
 
     // ✅ Условие окончания торгов
     if (
+    this.activePlayers.length === 1 ||
+    (
         this.turnCount >= this.minTurns &&
-        this.lastRaiser &&
-        currentPlayer.id === this.lastRaiser
-    ) {
-        this.startPlayingPhase();
-        return;
-    }
+        (
+            !this.lastRaiser || 
+            currentPlayer.id === this.lastRaiser
+        )
+    )
+) {
+    this.startPlayingPhase();
+    return;
+}
 
     this.requestBid();
 }
