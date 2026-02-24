@@ -4,7 +4,6 @@ const Game = require('./game');
 class Room {
     constructor({ name, bet, password, maxPlayers, icon, owner }) {
         this.id = randomUUID();
-        this.game = new Game(this);
         this.name = name;
         this.bet = bet; // baseBet
         this.password = password || null;
@@ -15,6 +14,7 @@ class Room {
         this.status = "waiting"; // waiting | playing
 
         this.owner = owner;
+        this.game = null;
     }
 broadcastRoomUpdate() {
     const data = {
@@ -44,6 +44,10 @@ toggleReady(playerId) {
     ) {
         this.startGame();
     }
+}
+startGame() {
+    this.status = "playing";
+    this.game = new Game(this);
 }
     addPlayer(player) {
 
