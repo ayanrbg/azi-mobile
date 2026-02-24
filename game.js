@@ -142,6 +142,7 @@ startBiddingPhase() {
 
     this.baseBet = this.room.bet;
     this.currentBet = this.baseBet;
+    this.roundAfterRaise = false;
 
     this.activePlayers = [...this.players];
     this.currentPlayerIndex = 0;
@@ -191,8 +192,6 @@ bidAction(playerId, action, amount = null) {
     const player = this.activePlayers[this.currentPlayerIndex];
     if (!player || player.id !== playerId) return;
 
-    this.turnCount++;
-
     if (action === "raise") {
 
         let newBet;
@@ -207,44 +206,38 @@ bidAction(playerId, action, amount = null) {
 
         this.currentBet = newBet;
         this.playerBids[playerId] = newBet;
-        this.lastRaiser = playerId;
 
-        this.currentPlayerIndex++;
-        if (this.currentPlayerIndex >= this.activePlayers.length) {
-            this.currentPlayerIndex = 0;
-        }
+        this.lastRaiser = playerId;
+        this.roundAfterRaise = true;
+
+        this.nextBidTurn();
+        return;
     }
 
     if (action === "pass") {
 
-        this.activePlayers.splice(this.currentPlayerIndex, 1);
+        this.nextBidTurn();
+        return;
+    }
+}
+nextBidTurn() {
 
-        if (this.activePlayers.length === 1) {
-            this.startPlayingPhase();
-            return;
-        }
+    this.currentPlayerIndex++;
 
-        if (this.currentPlayerIndex >= this.activePlayers.length) {
-            this.currentPlayerIndex = 0;
-        }
+    if (this.currentPlayerIndex >= this.activePlayers.length) {
+        this.currentPlayerIndex = 0;
     }
 
     const currentPlayer = this.activePlayers[this.currentPlayerIndex];
 
-    // 🔥 Проверяем окончание ДО отправки сообщений
-    if (
-        this.turnCount >= this.minTurns &&
-        this.lastRaiser &&
-        currentPlayer.id === this.lastRaiser
-    ) {
+    // 🔥 Если был raise и ход вернулся к raiser → конец торгов
+    if (this.roundAfterRaise && currentPlayer.id === this.lastRaiser) {
         this.startPlayingPhase();
         return;
     }
 
-    // ✅ Теперь отправляем обновление всем
+    // иначе продолжаем торги
     this.broadcastBiddingState();
-
-    // ✅ И только потом requestBid следующему
     this.requestBid();
 }
 nextPlayer() {
