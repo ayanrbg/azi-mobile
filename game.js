@@ -145,6 +145,10 @@ startBiddingPhase() {
 
     this.lastRaiser = null;
 
+    // ✅ ВОТ ЭТО ДОБАВИТЬ
+    this.broadcastBiddingState();
+
+    // ✅ А потом уже запрос первому
     this.requestBid();
 }
 requestBid() {
