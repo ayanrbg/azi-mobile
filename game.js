@@ -135,8 +135,14 @@ startBiddingPhase() {
         this.playerBids[p.id] = 0;
     });
 
-    this.lastRaiser = null;
-    this.lastRaiserIndex = undefined;
+    this.turnCount = 0;
+
+    // минимум ходов
+    if (this.activePlayers.length === 2) {
+        this.minTurns = 3;
+    } else {
+        this.minTurns = this.activePlayers.length;
+    }
 
     this.broadcastBiddingState();
     this.requestBid();
@@ -166,9 +172,8 @@ bidAction(playerId, action, amount = null) {
     const player = this.activePlayers[this.currentPlayerIndex];
     if (!player || player.id !== playerId) return;
 
-    // =======================
-    // RAISE
-    // =======================
+    this.turnCount++;
+
     if (action === "raise") {
 
         let newBet;
@@ -183,24 +188,12 @@ bidAction(playerId, action, amount = null) {
 
         this.currentBet = newBet;
         this.playerBids[playerId] = newBet;
-
-        // запоминаем позицию рейзера
-        this.lastRaiser = playerId;
-        this.lastRaiserIndex = this.currentPlayerIndex;
-
-        this.nextPlayer();
-        this.broadcastBiddingState();
-        return;
     }
 
-    // =======================
-    // PASS
-    // =======================
     if (action === "pass") {
 
         this.activePlayers.splice(this.currentPlayerIndex, 1);
 
-        // если остался один — конец торгов
         if (this.activePlayers.length === 1) {
             this.startPlayingPhase();
             return;
@@ -214,27 +207,22 @@ bidAction(playerId, action, amount = null) {
         this.requestBid();
         return;
     }
-}
-nextPlayer() {
 
-    if (this.activePlayers.length === 1) {
+    // 🔥 проверка окончания торгов
+    if (this.turnCount >= this.minTurns) {
         this.startPlayingPhase();
         return;
     }
+
+    this.nextPlayer();
+    this.broadcastBiddingState();
+}
+nextPlayer() {
 
     this.currentPlayerIndex++;
 
     if (this.currentPlayerIndex >= this.activePlayers.length) {
         this.currentPlayerIndex = 0;
-    }
-
-    // если был рейз и мы вернулись к рейзеру — конец торгов
-    if (
-        this.lastRaiserIndex !== undefined &&
-        this.currentPlayerIndex === this.lastRaiserIndex
-    ) {
-        this.startPlayingPhase();
-        return;
     }
 
     this.requestBid();
