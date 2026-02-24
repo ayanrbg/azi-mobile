@@ -14,7 +14,7 @@ const WebSocket = require('ws');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const url = require('url');
-const roomManager = require('./rooms');
+const roomManager = require('./rooms.js');
 
 const app = express();
 app.use(express.json());
