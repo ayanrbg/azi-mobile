@@ -135,20 +135,9 @@ startBiddingPhase() {
         this.playerBids[p.id] = 0;
     });
 
-    this.turnCount = 0;
-
-    if (this.activePlayers.length === 2) {
-        this.minTurns = 3;
-    } else {
-        this.minTurns = this.activePlayers.length;
-    }
-
     this.lastRaiser = null;
 
-    // ✅ ВОТ ЭТО ДОБАВИТЬ
     this.broadcastBiddingState();
-
-    // ✅ А потом уже запрос первому
     this.requestBid();
 }
 requestBid() {
@@ -175,7 +164,7 @@ bidAction(playerId, action, amount = null) {
 
     const player = this.activePlayers[this.currentPlayerIndex];
     if (!player || player.id !== playerId) return;
-    this.turnCount++;    
+
     if (action === "raise") {
 
         let newBet;
@@ -192,11 +181,9 @@ bidAction(playerId, action, amount = null) {
         this.playerBids[playerId] = newBet;
 
         this.lastRaiser = playerId;
-        this.roundStartIndex = this.currentPlayerIndex;
 
-        
-        this.broadcastBiddingState();
         this.nextPlayer();
+        this.broadcastBiddingState();
         return;
     }
 
@@ -204,7 +191,6 @@ bidAction(playerId, action, amount = null) {
 
         this.activePlayers.splice(this.currentPlayerIndex, 1);
 
-        // если остался 1 игрок — конец торгов
         if (this.activePlayers.length === 1) {
             this.startPlayingPhase();
             return;
@@ -213,6 +199,7 @@ bidAction(playerId, action, amount = null) {
         if (this.currentPlayerIndex >= this.activePlayers.length) {
             this.currentPlayerIndex = 0;
         }
+
         this.broadcastBiddingState();
         this.requestBid();
         return;
@@ -220,7 +207,6 @@ bidAction(playerId, action, amount = null) {
 }
 nextPlayer() {
 
-    // если остался один — он выиграл торги
     if (this.activePlayers.length === 1) {
         this.startPlayingPhase();
         return;
@@ -234,20 +220,14 @@ nextPlayer() {
 
     const currentPlayer = this.activePlayers[this.currentPlayerIndex];
 
-    // ✅ Условие окончания торгов
+    // если был raise и мы вернулись к рейзеру — конец торгов
     if (
-    this.activePlayers.length === 1 ||
-    (
-        this.turnCount >= this.minTurns &&
-        (
-            !this.lastRaiser || 
-            currentPlayer.id === this.lastRaiser
-        )
-    )
-) {
-    this.startPlayingPhase();
-    return;
-}
+        this.lastRaiser &&
+        currentPlayer.id === this.lastRaiser
+    ) {
+        this.startPlayingPhase();
+        return;
+    }
 
     this.requestBid();
 }
