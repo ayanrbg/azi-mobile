@@ -296,6 +296,18 @@ if (data.type === "ready") {
 
     room.toggleReady(ws.user.id.toString());
 }
+if (data.type === "discardCard") {
+
+    if (!ws.currentRoom) return;
+
+    const room = roomManager.getRoom(ws.currentRoom);
+    if (!room || !room.game) return;
+
+    room.game.discardCard(
+        ws.user.id.toString(),
+        data.data.cardIndex
+    );
+}
 });
 ws.on('close', () => {
 

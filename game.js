@@ -15,8 +15,42 @@ class Game {
         this.tricks = {};
 
         this.dealCards();
+        this.phase = "discard";
+        this.requestDiscard();
     }
+    requestDiscard() {
 
+    this.discardedPlayers = new Set();
+
+    this.players.forEach(player => {
+        if (player.ws.readyState === 1) {
+            player.ws.send(JSON.stringify({
+                type: "requestDiscard"
+            }));
+        }
+    });
+}
+discardCard(playerId, cardIndex) {
+
+    const hand = this.hands.get(playerId);
+
+    if (!hand) return;
+
+    if (cardIndex < 0 || cardIndex >= hand.length) return;
+
+    // удаляем карту
+    hand.splice(cardIndex, 1);
+
+    this.discardedPlayers.add(playerId);
+
+    // если все сбросили — продолжаем
+    if (this.discardedPlayers.size === this.players.length) {
+
+        this.phase = "nextPhase"; // временно
+
+        this.sendGameUpdate();
+    }
+}
     createDeck() {
         const suits = ["H", "D", "C", "S"];
         const ranks = ["6", "7", "8", "9", "10", "J", "Q", "K", "A"];

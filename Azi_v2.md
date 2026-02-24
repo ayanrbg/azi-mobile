@@ -155,3 +155,25 @@ ws://localhost:3002?token=
   "type": "ready"
 }
 ```
+ОТ СЕРВЕР 
+```json
+{
+  "type": "roomUpdate" // ready
+}
+```
+### Раздача карт (запрос на удаление карты)
+ОТ КЛИЕНТА
+```json
+{
+  "type": "discardCard",
+  "data": {
+    "cardIndex": 0 // 0 1 2 3  (4 карты)
+  }
+}
+```
+ОТ СЕРВЕРА
+```json
+{
+  "type": "requestDiscard"
+}
+```
