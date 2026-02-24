@@ -184,6 +184,7 @@ bidAction(playerId, action, amount = null) {
         this.roundStartIndex = this.currentPlayerIndex;
 
         this.nextPlayer();
+        this.broadcastBiddingState();
         return;
     }
 
@@ -200,7 +201,7 @@ bidAction(playerId, action, amount = null) {
         if (this.currentPlayerIndex >= this.activePlayers.length) {
             this.currentPlayerIndex = 0;
         }
-
+        this.broadcastBiddingState();
         this.requestBid();
         return;
     }
@@ -300,6 +301,28 @@ createDeck() {
             }
         });
     }
+    broadcastBiddingState() {
+
+    this.players.forEach(player => {
+
+        if (player.ws.readyState === 1) {
+
+            player.ws.send(JSON.stringify({
+                type: "gameUpdate",
+                phase: "bidding",
+                trump: this.trump,
+                pot: this.currentBet * this.activePlayers.length,
+                currentBet: this.currentBet,
+                baseBet: this.baseBet,
+                currentPlayer: this.activePlayers[this.currentPlayerIndex]?.id,
+                tricks: this.tricks,
+                yourCards: this.hands.get(player.id),
+                yourTricks: this.tricks[player.id] || 0,
+                playerBids: this.playerBids
+            }));
+        }
+    });
+}
 }
 
 module.exports = Game;
