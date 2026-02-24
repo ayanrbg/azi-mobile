@@ -230,14 +230,16 @@ nextBidTurn() {
 
     const currentPlayer = this.activePlayers[this.currentPlayerIndex];
 
-    // 🔥 Если был raise и ход вернулся к raiser → конец торгов
+    // если был raise и ход вернулся к raiser → конец торгов
     if (this.roundAfterRaise && currentPlayer.id === this.lastRaiser) {
         this.startPlayingPhase();
         return;
     }
 
-    // иначе продолжаем торги
-    this.broadcastBiddingState();
+    // ❌ УБРАТЬ broadcastBiddingState()
+    // this.broadcastBiddingState();
+
+    // ✅ Отправляем только requestBid
     this.requestBid();
 }
 nextPlayer() {
