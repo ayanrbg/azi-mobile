@@ -153,14 +153,16 @@ startBiddingPhase() {
 
     this.turnCount = 0;
 
-    // минимум ходов
     if (this.activePlayers.length === 2) {
         this.minTurns = 3;
     } else {
         this.minTurns = this.activePlayers.length;
     }
 
-    this.broadcastBiddingState();
+    this.lastRaiser = null;
+
+    // ❌ НЕ шлём broadcastBiddingState()
+    // ✅ Сразу запрос первому
     this.requestBid();
 }
 requestBid() {
@@ -196,19 +198,24 @@ bidAction(playerId, action, amount = null) {
 
     if (action === "raise") {
 
-        let newBet;
+    let newBet;
 
-        if (amount && amount > this.currentBet) {
-            newBet = amount;
-        } else {
-            newBet = Math.floor(this.currentBet * 1.5);
-        }
-
-        if (newBet <= this.currentBet) return;
-
-        this.currentBet = newBet;
-        this.playerBids[playerId] = newBet;
+    if (amount && amount > this.currentBet) {
+        newBet = amount;
+    } else {
+        newBet = Math.floor(this.currentBet * 1.5);
     }
+
+    if (newBet <= this.currentBet) return;
+
+    this.currentBet = newBet;
+    this.playerBids[playerId] = newBet;
+
+    this.lastRaiser = playerId;
+
+    this.nextPlayer();
+    return;
+}
 
     if (action === "pass") {
 
@@ -223,7 +230,6 @@ bidAction(playerId, action, amount = null) {
             this.currentPlayerIndex = 0;
         }
 
-        this.broadcastBiddingState();
         this.requestBid();
         return;
     }
