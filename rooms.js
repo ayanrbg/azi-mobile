@@ -1,8 +1,9 @@
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
+
 
 class Room {
     constructor({ name, bet, password, maxPlayers, icon, owner }) {
-        this.id = uuidv4();
+        this.id = randomUUID();
         this.name = name;
         this.bet = bet; // baseBet
         this.password = password || null;
