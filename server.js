@@ -263,6 +263,43 @@ if (data.type === "joinRoom") {
         }));
     }
 }
+if (data.type === "leaveRoom") {
+
+    if (!ws.currentRoom) return;
+
+    const room = roomManager.getRoom(ws.currentRoom);
+
+    if (!room) {
+        ws.currentRoom = null;
+        return;
+    }
+
+    room.removePlayer(ws.user.id.toString());
+
+    // если комната пустая — удалить
+    if (room.players.length === 0) {
+        roomManager.removeRoom(room.id);
+    }
+
+    ws.currentRoom = null;
+
+    ws.send(JSON.stringify({
+        type: "leftRoom"
+    }));
+}
+});
+ws.on('close', () => {
+
+    if (!ws.currentRoom) return;
+
+    const room = roomManager.getRoom(ws.currentRoom);
+    if (!room) return;
+
+    room.removePlayer(ws.user.id.toString());
+
+    if (room.players.length === 0) {
+        roomManager.removeRoom(room.id);
+    }
 });
 });
 
