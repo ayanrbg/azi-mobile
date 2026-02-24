@@ -15,24 +15,45 @@ class Room {
 
         this.owner = owner;
     }
+broadcastRoomUpdate() {
+    const data = {
+        type: "roomUpdate",
+        room: this.getFullData()
+    };
 
-    addPlayer(player) {
-        if (this.players.length >= this.maxPlayers) {
-            throw new Error("Room is full");
+    this.players.forEach(p => {
+        if (p.ws && p.ws.readyState === 1) {
+            p.ws.send(JSON.stringify(data));
         }
+    });
+}
+    addPlayer(player) {
 
-        this.players.push({
-            id: player.id.toString(),
-            name: player.nickname,
-            balance: player.balance,
-            ready: false,
-            ws: player.ws
-        });
+    // ❗ Проверка — уже в комнате?
+    const exists = this.players.find(p => p.id === player.id.toString());
+    if (exists) {
+        throw new Error("Player already in room");
     }
+
+    if (this.players.length >= this.maxPlayers) {
+        throw new Error("Room is full");
+    }
+
+    this.players.push({
+        id: player.id.toString(),
+        name: player.nickname,
+        balance: player.balance,
+        ready: false,
+        ws: player.ws
+    });
+
+    this.broadcastRoomUpdate();
+}
 
     removePlayer(playerId) {
-        this.players = this.players.filter(p => p.id !== playerId);
-    }
+    this.players = this.players.filter(p => p.id !== playerId);
+    this.broadcastRoomUpdate();
+}
 
     getPublicData() {
         return {

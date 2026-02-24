@@ -33,7 +33,108 @@ POST /register
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwibmlja25hbWUiOiJwbGF5ZXIyIiwiaWF0IjoxNzcxODU3MzkyLCJleHAiOjE3NzI0NjIxOTJ9.tdEyAFWzbcpRUsdkncJO6VyUrXXisPakmXFZzElv9bA"
 }
 ```
+
 ### Подключение к серверу WebSocket
 ```json
 ws://localhost:3002?token=
+```
+Сервер присылает auth_result
+```json
+{
+  "type": "authResult",
+  "success": true,
+  "user": {
+    "id": "user_id",
+    "name": "username",
+    "balance": 1000
+  }
+}
+```
+ИЛИ 
+```json
+{
+  "type": "authResult",
+  "success": false
+}
+```
+## Комнаты
+### Получение списка комнат
+ОТ КЛИЕНТА
+```json
+{
+  "type": "getRooms"
+}
+```
+ОТ СЕРВЕРА
+```json
+{
+  "type": "roomsList",
+  "rooms": [
+    {
+      "id": "uuid",
+      "name": "Room 1",
+      "bet": 100,
+      "hasPassword": false,
+      "players": 1,
+      "maxPlayers": 4,
+      "icon": "H",
+      "status": "waiting"
+    }
+  ]
+}
+```
+
+### Создание комнаты
+ОТ КЛИЕНТА
+```json
+{
+  "type": "createRoom",
+  "data": {
+    "name": "Test Room",
+    "bet": 100,
+    "password": "",
+    "maxPlayers": 4,
+    "icon": "H"
+  }
+}
+```
+ОТ СЕРВЕРА
+```json
+{
+  "type": "roomCreated",
+  "roomId": "uuid_here"
+}
+```
+
+### Подключение к комнате
+ОТ КЛИЕНТА
+```json
+{
+  "type": "joinRoom",
+  "data": {
+    "roomId": "uuid_here",
+    "password": ""
+  }
+}
+```
+ОТ СЕРВЕРА
+```json
+{
+  "type": "joinedRoom",
+  "room": {
+    "id": "uuid",
+    "name": "Test Room",
+    "bet": 100,
+    "maxPlayers": 4,
+    "icon": "H",
+    "players": [
+      {
+        "id": "1",
+        "name": "username",
+        "ready": false,
+        "balance": 1000
+      }
+    ]
+  }
+}
 ```

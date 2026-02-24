@@ -217,6 +217,11 @@ wss.on('connection', async (ws, req) => {
         type: "roomCreated",
         roomId: room.id
     }));
+    
+    ws.send(JSON.stringify({
+        type: "joinedRoom",
+        room: room.getFullData()
+    }));
 }
 if (data.type === "joinRoom") {
 
