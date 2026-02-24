@@ -136,6 +136,7 @@ startBiddingPhase() {
     });
 
     this.lastRaiser = null;
+    this.lastRaiserIndex = undefined;
 
     this.broadcastBiddingState();
     this.requestBid();
@@ -165,6 +166,9 @@ bidAction(playerId, action, amount = null) {
     const player = this.activePlayers[this.currentPlayerIndex];
     if (!player || player.id !== playerId) return;
 
+    // =======================
+    // RAISE
+    // =======================
     if (action === "raise") {
 
         let newBet;
@@ -180,17 +184,23 @@ bidAction(playerId, action, amount = null) {
         this.currentBet = newBet;
         this.playerBids[playerId] = newBet;
 
+        // запоминаем позицию рейзера
         this.lastRaiser = playerId;
+        this.lastRaiserIndex = this.currentPlayerIndex;
 
         this.nextPlayer();
         this.broadcastBiddingState();
         return;
     }
 
+    // =======================
+    // PASS
+    // =======================
     if (action === "pass") {
 
         this.activePlayers.splice(this.currentPlayerIndex, 1);
 
+        // если остался один — конец торгов
         if (this.activePlayers.length === 1) {
             this.startPlayingPhase();
             return;
@@ -218,12 +228,10 @@ nextPlayer() {
         this.currentPlayerIndex = 0;
     }
 
-    const currentPlayer = this.activePlayers[this.currentPlayerIndex];
-
-    // если был raise и мы вернулись к рейзеру — конец торгов
+    // если был рейз и мы вернулись к рейзеру — конец торгов
     if (
-        this.lastRaiser &&
-        currentPlayer.id === this.lastRaiser
+        this.lastRaiserIndex !== undefined &&
+        this.currentPlayerIndex === this.lastRaiserIndex
     ) {
         this.startPlayingPhase();
         return;
