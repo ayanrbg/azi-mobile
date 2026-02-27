@@ -287,10 +287,41 @@ startPlayingPhase() {
     this.leadSuit = null;
     this.completedTricks = 0;
 
-    this.currentPlayerIndex = 0; // первый из activePlayers
+    this.currentPlayerIndex = 0;
 
-    this.broadcastPlayingState();
+    // ❗ Всем кроме текущего — gameUpdate
+    this.broadcastPlayingStateExceptCurrent();
+
+    // ❗ Текущему — только requestMove
     this.requestMove();
+}
+broadcastPlayingStateExceptCurrent() {
+
+    const currentPlayerId = this.activePlayers[this.currentPlayerIndex].id;
+
+    this.players.forEach(player => {
+
+        if (player.id === currentPlayerId) return;
+
+        if (player.ws.readyState === 1) {
+
+            player.ws.send(JSON.stringify({
+                type: "gameUpdate",
+                phase: "playing",
+                trump: this.trump,
+                trumpCard: this.trumpCard,
+                pot: this.currentBet,
+                currentBet: this.currentBet,
+                baseBet: this.baseBet,
+                currentPlayer: currentPlayerId,
+                tricks: this.tricks,
+                yourCards: this.hands.get(player.id),
+                yourTricks: this.tricks[player.id] || 0,
+                currentTrick: this.currentTrick,
+                leadSuit: this.leadSuit
+            }));
+        }
+    });
 }
 broadcastPlayingState() {
 
@@ -322,7 +353,28 @@ requestMove() {
 
     player.ws.send(JSON.stringify({
         type: "requestMove",
-        validCards
+
+        phase: this.phase,
+
+        trump: this.trump,
+        trumpCard: this.trumpCard,
+
+        pot: this.currentBet * this.activePlayers.length,
+        currentBet: this.currentBet,
+        baseBet: this.baseBet,
+
+        currentPlayer: this.activePlayers[this.currentPlayerIndex].id,
+
+        tricks: this.tricks,
+
+        yourCards: this.hands.get(player.id),
+        yourTricks: this.tricks[player.id] || 0,
+
+        currentTrick: this.currentTrick,
+
+        leadSuit: this.leadSuit,
+
+        validCards: validCards
     }));
 }
 createDeck() {
@@ -403,7 +455,10 @@ nextTurn() {
         this.currentPlayerIndex = 0;
     }
 
-    this.broadcastPlayingState();
+    // ❗ Всем кроме текущего — gameUpdate
+    this.broadcastPlayingStateExceptCurrent();
+
+    // ❗ Текущему — только requestMove
     this.requestMove();
 }
 broadcastCardPlayed(playerId, card) {
