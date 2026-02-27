@@ -287,25 +287,25 @@ if (data.type === "leaveRoom") {
         type: "leftRoom"
     }));
 }
-if (data.type === "ready") {
+// if (data.type === "ready") {
 
-    if (!ws.currentRoom) return;
+//     if (!ws.currentRoom) return;
 
-    const room = roomManager.getRoom(ws.currentRoom);
-    if (!room) return;
+//     const room = roomManager.getRoom(ws.currentRoom);
+//     if (!room) return;
 
-    room.toggleReady(ws.user.id.toString());
-}
-if (data.type === "decidePlaying") {
+//     room.toggleReady(ws.user.id.toString());
+// }
+// if (data.type === "decidePlaying") {
 
-    const room = roomManager.getRoom(ws.currentRoom);
-    if (!room || !room.game) return;
+//     const room = roomManager.getRoom(ws.currentRoom);
+//     if (!room || !room.game) return;
 
-    room.game.decidePlaying(
-        ws.user.id.toString(),
-        data.data.play
-    );
-}
+//     room.game.decidePlaying(
+//         ws.user.id.toString(),
+//         data.data.play
+//     );
+// }
 if (data.type === "discardCard") {
 
     const room = roomManager.getRoom(ws.currentRoom);

@@ -15,70 +15,68 @@ class Game {
         this.tricks = {};
 
         this.dealCards();
-        this.phase = "discard";
-        this.startDecisionPhase();
 
         this.currentTrick = [];
         this.leadSuit = null;
         this.currentPlayerIndex = 0; // кто ходит
         this.completedTricks = 0;
     }
-    requestDiscard() {
+//     requestDiscard() {
 
-    this.discardedPlayers = new Set();
+//     this.discardedPlayers = new Set();
 
-    this.players.forEach(player => {
-        if (player.ws.readyState === 1) {
-            player.ws.send(JSON.stringify({
-                type: "requestDiscard"
-            }));
-        }
-    });
-}
-startDecisionPhase() {
+//     this.players.forEach(player => {
+//         if (player.ws.readyState === 1) {
+//             player.ws.send(JSON.stringify({
+//                 type: "requestDiscard"
+//             }));
+//         }
+//     });
+// }
+// startDecisionPhase() {
 
-    this.phase = "deciding";
-    this.playersDecisions = new Map();
+//     this.phase = "deciding";
+//     this.playersDecisions = new Map();
 
-    this.players.forEach(player => {
-        if (player.ws.readyState === 1) {
-            player.ws.send(JSON.stringify({
-                type: "requestPlayDecision",
-                phase: "deciding",
+//     this.players.forEach(player => {
+//         if (player.ws.readyState === 1) {
+//             player.ws.send(JSON.stringify({
+//                 type: "requestPlayDecision",
+//                 phase: "deciding",
 
-                // 👇 полная карта
-                trumpCard: this.trumpCard,
-                trump: this.trumpCard.suit,
+//                 // 👇 полная карта
+//                 trumpCard: this.trumpCard,
+//                 trump: this.trumpCard.suit,
 
-                pot: this.room.bet * this.players.length,
-                tricks: {},
-                yourCards: this.hands.get(player.id),
-                yourTricks: 0
-            }));
-        }
-    });
-}
-decidePlaying(playerId, play) {
+//                 pot: this.room.bet * this.players.length,
+//                 tricks: {},
+//                 yourCards: this.hands.get(player.id),
+//                 yourTricks: 0
+//             }));
+//         }
+//     });
+// }
+// decidePlaying(playerId, play) {
 
-    if (this.phase !== "deciding") return;
-    this.playersDecisions.set(playerId, play);
+//     if (this.phase !== "deciding") return;
+//     this.playersDecisions.set(playerId, play);
 
-    // ждём пока все ответят
-    if (this.playersDecisions.size !== this.players.length) return;
+//     // ждём пока все ответят
+//     if (this.playersDecisions.size !== this.players.length) return;
 
-    // фильтруем тех кто играет
-    this.players = this.players.filter(p =>
-        this.playersDecisions.get(p.id) === true
-    );
+//     // фильтруем тех кто играет
+//     this.players = this.players.filter(p =>
+//         this.playersDecisions.get(p.id) === true
+//     );
 
-    // если меньше 2 игроков → отменяем
-    if (this.players.length < 2) {
-        this.room.status = "waiting";
-        return;
-    }
+//     // если меньше 2 игроков → отменяем
+//     if (this.players.length < 2) {
+//         this.room.status = "waiting";
+//         return;
+//     }
 
-    this.startDiscardPhase();
-}
+//     this.startDiscardPhase();
+// }
 startDiscardPhase() {
 
     this.phase = "discarding";
@@ -602,7 +600,7 @@ resetGame() {
     this.dealCards();
 
     // снова deciding
-    this.startDecisionPhase();
+    // this.startDecisionPhase();
 }
     shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
@@ -625,9 +623,29 @@ resetGame() {
             this.tricks[player.id] = 0;
         });
 
-        this.sendGameUpdate();
+        // this.sendGameUpdate();
+        this.sendGameStarted();
     }
+sendGameStarted() {
 
+    const playersDictionary = {};
+
+    this.players.forEach(player => {
+        playersDictionary[player.id] = 4;
+    });
+
+    this.players.forEach(player => {
+
+        if (player.ws.readyState !== 1) return;
+
+        player.ws.send(JSON.stringify({
+            type: "gameStarted",
+            phase: "dealing",
+            trumpCard: this.trumpCard,
+            players: playersDictionary
+        }));
+    });
+}
     sendGameUpdate() {
 
         this.players.forEach(player => {
