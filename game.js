@@ -142,7 +142,6 @@ startBiddingPhase() {
 
     this.baseBet = this.room.bet;
     this.currentBet = this.baseBet;
-    this.roundAfterRaise = false;
 
     this.activePlayers = [...this.players];
     this.currentPlayerIndex = 0;
@@ -152,12 +151,20 @@ startBiddingPhase() {
         this.playerBids[p.id] = 0;
     });
 
-    this.lastRaiser = null;
+    // 🔥 Счётчик ходов
+    this.turnCount = 0;
 
-    // ❗ Сначала всем кроме первого — gameUpdate
+    // 🔥 Жёсткий лимит ходов
+    if (this.activePlayers.length === 2) {
+        this.maxTurns = 3;
+    } else {
+        this.maxTurns = this.activePlayers.length;
+    }
+
+    // Всем кроме первого — gameUpdate
     this.broadcastBiddingStateExceptCurrent();
 
-    // ❗ Потом первому — requestBid
+    // Первому — requestBid
     this.requestBid();
 }
 requestBid() {
@@ -244,24 +251,22 @@ broadcastBiddingStateExceptCurrent() {
 }
 nextBidTurn() {
 
+    this.turnCount++;
+
+    // 🔥 ЖЁСТКИЙ лимит
+    if (this.turnCount >= this.maxTurns) {
+        this.startPlayingPhase();
+        return;
+    }
+
     this.currentPlayerIndex++;
 
     if (this.currentPlayerIndex >= this.activePlayers.length) {
         this.currentPlayerIndex = 0;
     }
 
-    const currentPlayer = this.activePlayers[this.currentPlayerIndex];
-
-    // если был raise и ход вернулся к raiser → конец торгов
-    if (this.roundAfterRaise && currentPlayer.id === this.lastRaiser) {
-        this.startPlayingPhase();
-        return;
-    }
-
-    // ✅ Сначала рассылаем gameUpdate всем кроме текущего
+    // 🔥 Рассылка
     this.broadcastBiddingStateExceptCurrent();
-
-    // ✅ Потом отправляем requestBid текущему
     this.requestBid();
 }
 nextPlayer() {
