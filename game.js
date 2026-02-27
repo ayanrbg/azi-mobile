@@ -299,28 +299,28 @@ broadcastPlayingStateExceptCurrent() {
 
     const currentPlayerId = this.activePlayers[this.currentPlayerIndex].id;
 
-    this.players.forEach(player => {
+    this.activePlayers.forEach(player => {
 
+        // ❗ текущему игроку НИЧЕГО не отправляем
         if (player.id === currentPlayerId) return;
 
-        if (player.ws.readyState === 1) {
+        if (player.ws.readyState !== 1) return;
 
-            player.ws.send(JSON.stringify({
-                type: "gameUpdate",
-                phase: "playing",
-                trump: this.trump,
-                trumpCard: this.trumpCard,
-                pot: this.currentBet,
-                currentBet: this.currentBet,
-                baseBet: this.baseBet,
-                currentPlayer: currentPlayerId,
-                tricks: this.tricks,
-                yourCards: this.hands.get(player.id),
-                yourTricks: this.tricks[player.id] || 0,
-                currentTrick: this.currentTrick,
-                leadSuit: this.leadSuit
-            }));
-        }
+        player.ws.send(JSON.stringify({
+            type: "gameUpdate",
+            phase: "playing",
+            trump: this.trump,
+            trumpCard: this.trumpCard,
+            pot: this.currentBet,
+            currentBet: this.currentBet,
+            baseBet: this.baseBet,
+            currentPlayer: currentPlayerId,
+            tricks: this.tricks,
+            yourCards: this.hands.get(player.id),
+            yourTricks: this.tricks[player.id] || 0,
+            currentTrick: this.currentTrick,
+            leadSuit: this.leadSuit
+        }));
     });
 }
 broadcastPlayingState() {
@@ -506,7 +506,7 @@ finishTrick() {
     this.currentTrick = [];
     this.leadSuit = null;
 
-    this.broadcastPlayingState();
+    this.broadcastPlayingStateExceptCurrent();
     this.requestMove();
 }
 determineTrickWinner() {
