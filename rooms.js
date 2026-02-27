@@ -28,26 +28,26 @@ broadcastRoomUpdate() {
         }
     });
 }
-toggleReady(playerId) {
+// toggleReady(playerId) {
 
-    // ❗ Нельзя ready если игра уже идёт
-    if (this.status === "playing") return;
+//     // ❗ Нельзя ready если игра уже идёт
+//     if (this.status === "playing") return;
     
-    const player = this.players.find(p => p.id === playerId);
+//     const player = this.players.find(p => p.id === playerId);
 
-    if (!player) return;
+//     if (!player) return;
 
-    player.ready = !player.ready;
+//     player.ready = !player.ready;
 
-    this.broadcastRoomUpdate();
-    // если все ready и минимум 2 игрока
-    if (
-        this.players.length >= 2 &&
-        this.players.every(p => p.ready)
-    ) {
-        this.startGame();
-    }
-}
+//     this.broadcastRoomUpdate();
+//     // если все ready и минимум 2 игрока
+//     if (
+//         this.players.length >= 2 &&
+//         this.players.every(p => p.ready)
+//     ) {
+//         this.startGame();
+//     }
+// }
 startGame() {
     this.status = "playing";
     this.game = new Game(this);
@@ -68,11 +68,15 @@ startGame() {
         id: player.id.toString(),
         name: player.nickname,
         balance: player.balance,
-        ready: false,
+        // ready: false,
         ws: player.ws
     });
-
+    
     this.broadcastRoomUpdate();
+    // 🔥 Автостарт при 2 игроках
+if (this.players.length >= 2 && this.status === "waiting") {
+    this.startGame();
+}
 }
 
     removePlayer(playerId) {
