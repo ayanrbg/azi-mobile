@@ -694,9 +694,45 @@ async endGame(winnerId) {
     });
 
     setTimeout(() => {
+    this.restartRound();
+}, 1000);
+}
+restartRound() {
+
+    // пересобираем игроков из комнаты
+    this.players = this.room.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        balance: p.balance,
+        ws: p.ws
+    }));
+
+    if (this.players.length < 2) {
         this.room.status = "waiting";
         this.room.game = null;
-    }, 1000);
+        return;
+    }
+
+    // новая колода
+    this.deck = this.createDeck();
+    this.shuffle(this.deck);
+
+    this.trumpCard = this.deck.pop();
+    this.trump = this.trumpCard.suit;
+
+    // сброс состояния
+    this.hands = new Map();
+    this.tricks = {};
+    this.currentTrick = [];
+    this.leadSuit = null;
+    this.completedTricks = 0;
+    this.biddingStage = 1;
+
+    // pot обнуляется для новой игры
+    this.pot = 0;
+
+    // раздаём заново
+    this.dealCards();
 }
 handleAzi() {
 
