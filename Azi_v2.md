@@ -197,3 +197,50 @@ ws://localhost:3002?token=
   }
 }
 ```
+
+ОТ СЕРВЕРА
+```json
+{
+    "type": "gameUpdate",
+    "phase": "bidding"
+}
+```
+
+## Ставки
+### Начало ставок
+
+ОТ СЕРВЕРА
+
+```json
+{
+  "type": "requestBid"
+}
+```
+ОТ КЛИЕНТА
+```json
+{
+  "type": "bidAction",
+  "data": {
+    "action": "raise" //pass
+  }
+}
+```
+## Игра
+
+### Запрос хода картой
+ОТ СЕРВЕРА
+```json
+{
+  "type": "requestMove",
+  "validCards": [0, 2]
+}
+```
+ОТ КЛИЕНТА 
+```json
+{
+  "type": "playCard",
+  "data": {
+    "cardIndex": 0
+  }
+}
+```

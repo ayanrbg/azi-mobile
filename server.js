@@ -242,7 +242,9 @@ if (data.type === "joinRoom") {
             message: "Wrong password"
         }));
     }
-
+    if (ws.currentRoom === room.id) {
+        return; // уже в этой комнате
+    }
     try {
         room.addPlayer({
             ...ws.user,
@@ -255,7 +257,9 @@ if (data.type === "joinRoom") {
             type: "joinedRoom",
             room: room.getFullData()
         }));
-
+        if (room.players.length >= 2 && room.status === "waiting") {
+            room.startGame();
+        }
     } catch (err) {
         ws.send(JSON.stringify({
             type: "error",

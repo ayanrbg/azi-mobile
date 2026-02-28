@@ -52,12 +52,14 @@ startGame() {
     this.status = "playing";
     this.game = new Game(this);
 }
-    addPlayer(player) {
+addPlayer(player) {
 
-    // ❗ Проверка — уже в комнате?
     const exists = this.players.find(p => p.id === player.id.toString());
+
     if (exists) {
-        throw new Error("Player already in room");
+        // просто обновляем ws
+        exists.ws = player.ws;
+        return;
     }
 
     if (this.players.length >= this.maxPlayers) {
@@ -68,15 +70,10 @@ startGame() {
         id: player.id.toString(),
         name: player.nickname,
         balance: player.balance,
-        // ready: false,
         ws: player.ws
     });
-    
+
     this.broadcastRoomUpdate();
-    // 🔥 Автостарт при 2 игроках
-if (this.players.length >= 2 && this.status === "waiting") {
-    this.startGame();
-}
 }
 
     removePlayer(playerId) {
