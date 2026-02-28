@@ -773,7 +773,20 @@ async endGame(winnerId) {
 }
 restartRound() {
 
-    // пересобираем игроков из комнаты
+    // ❗ Удаляем игроков с балансом 0
+    this.room.players = this.room.players.filter(p => {
+        const balance = p.ws?.user?.balance ?? p.balance;
+        return balance > 0;
+    });
+
+    // если осталось меньше 2 игроков — остановка
+    if (this.room.players.length < 2) {
+        this.room.status = "waiting";
+        this.room.game = null;
+        return;
+    }
+
+    // пересобираем игроков
     this.players = this.room.players.map(p => ({
         id: p.id,
         name: p.name,
@@ -781,11 +794,7 @@ restartRound() {
         ws: p.ws
     }));
 
-    if (this.players.length < 2) {
-        this.room.status = "waiting";
-        this.room.game = null;
-        return;
-    }
+    this.activePlayers = [...this.players];
 
     // новая колода
     this.deck = this.createDeck();
@@ -801,9 +810,11 @@ restartRound() {
     this.leadSuit = null;
     this.completedTricks = 0;
     this.biddingStage = 1;
+    this.pot = 0;
 
-    // раздаём заново
+    // 🔥 старт новой игры
     this.dealCards();
+    this.sendGameStarted();
 }
 handleAzi() {
 
