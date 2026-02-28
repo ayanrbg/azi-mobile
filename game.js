@@ -305,23 +305,20 @@ nextBidTurn() {
 }
 revealHandsToPlayers() {
 
-    const currentPlayerId = this.activeBidders[this.currentPlayerIndex].id;
-
     this.activeBidders.forEach(player => {
 
         if (player.ws.readyState !== 1) return;
 
         player.ws.send(JSON.stringify({
-            type: "gameUpdate",
+            type: "cardsReveal",
             phase: "bidding",
             stage: 2,
             trump: this.trump,
             pot: this.pot,
             currentBet: this.currentBet,
-            currentPlayer: currentPlayerId,
-            yourCards: this.hands.get(player.id),
             yourContribution: this.playerContributions[player.id],
-            yourBalance: player.balance
+            yourBalance: player.balance,
+            yourCards: this.hands.get(player.id)
         }));
     });
 }
