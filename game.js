@@ -162,9 +162,10 @@ startBiddingPhase() {
 }
 async deductChips(playerId, amount) {
 
-    if (amount <= 0) return 0;
     const player = this.activeBidders.find(p => p.id === playerId);
     if (!player) return 0;
+
+    if (amount <= 0) return 0;
 
     const available = player.balance;
     const actual = Math.min(amount, available);
@@ -184,6 +185,14 @@ async deductChips(playerId, amount) {
         );
     } catch (err) {
         console.error("Deduct error:", err);
+    }
+
+    // 🔥 ВОТ ЭТО ДОБАВЛЯЕМ
+    if (player.ws.readyState === 1) {
+        player.ws.send(JSON.stringify({
+            type: "balanceUpdate",
+            balance: player.balance
+        }));
     }
 
     return actual;
@@ -221,6 +230,7 @@ async bidAction(playerId, action, amount = null) {
     // PASS
     if (action === "pass") {
 
+        this.broadcastBidPlaced(playerId, "pass", 0);
         this.activeBidders.splice(this.currentPlayerIndex, 1);
 
         if (this.activeBidders.length === 1) {
@@ -242,9 +252,13 @@ async bidAction(playerId, action, amount = null) {
 
         if (amount < this.minRoomBet || amount > this.minRoomBet * 5) return;
 
-        await this.deductChips(playerId, amount);
+        const actual = await this.deductChips(playerId, amount);
         this.currentBet = this.playerContributions[playerId];
-
+        this.broadcastBidPlaced(
+            playerId,
+            actual < amount ? "all-in" : "bet",
+            actual
+        );
         this.nextBidTurn();
         return;
     }
@@ -253,8 +267,12 @@ async bidAction(playerId, action, amount = null) {
     if (action === "call") {
 
         const needed = this.currentBet - this.playerContributions[playerId];
-        await this.deductChips(playerId, needed);
-
+        const actual = await this.deductChips(playerId, needed);
+        this.broadcastBidPlaced(
+            playerId,
+            actual < needed ? "all-in" : "call",
+            actual
+        );
         this.nextBidTurn();
         return;
     }
@@ -266,8 +284,12 @@ async bidAction(playerId, action, amount = null) {
         const needed = newBet - this.playerContributions[playerId];
 
         this.currentBet = newBet;
-        await this.deductChips(playerId, needed);
-
+        const actual = await this.deductChips(playerId, needed);
+        this.broadcastBidPlaced(
+            playerId,
+            actual < needed ? "all-in" : "double",
+            actual
+        );
         this.nextBidTurn();
         return;
     }
@@ -762,6 +784,26 @@ sendGameStarted() {
 
     // 🔥 ВАЖНО — запускаем торги
     this.startBiddingPhase();
+}
+broadcastBidPlaced(playerId, action, amount) {
+
+    const totalContribution = this.playerContributions[playerId] || 0;
+
+    this.players.forEach(player => {
+
+        if (player.ws.readyState !== 1) return;
+
+        player.ws.send(JSON.stringify({
+            type: "bidPlaced",
+            playerId,
+            action,
+            amount,
+            totalContribution,
+            currentBet: this.currentBet,
+            pot: this.pot,
+            stage: this.biddingStage
+        }));
+    });
 }
     sendGameUpdate() {
 
