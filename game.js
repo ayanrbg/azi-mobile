@@ -140,7 +140,7 @@ discardCard(playerId, cardIndex) {
         this.startPlayingPhase();
     }
 }
-startBiddingPhase() {
+startBiddingPhase(isCarryOver = false) {
 
     this.phase = "bidding";
 
@@ -151,8 +151,13 @@ startBiddingPhase() {
     this.currentPlayerIndex = 0;
 
     this.playerContributions = {};
-    this.pot = 0;
     this.allInPlayers = new Set();
+
+    // ❗ pot НЕ обнуляем при Ази
+    if (!isCarryOver) {
+        this.pot = 0;
+    }
+
     this.activeBidders.forEach(p => {
         this.playerContributions[p.id] = 0;
     });
@@ -695,17 +700,115 @@ async endGame(winnerId) {
 }
 handleAzi() {
 
-    this.phase = "finished";
+    this.phase = "azi_waiting";
+
+    // фиксируем игроков ничьи
+    this.aziPlayers = [...this.activePlayers];
+
+    const entryCost = Math.floor(this.pot / this.aziPlayers.length);
 
     this.players.forEach(player => {
+
+        if (player.ws.readyState !== 1) return;
+
+        const isAziPlayer = this.aziPlayers.find(p => p.id === player.id);
+
+        if (isAziPlayer) {
+            player.ws.send(JSON.stringify({
+                type: "aziHold",
+                pot: this.pot
+            }));
+        } else {
+            player.ws.send(JSON.stringify({
+                type: "aziJoinRequest",
+                entryCost,
+                pot: this.pot
+            }));
+        }
+    });
+}
+async aziJoinAction(playerId, action) {
+
+    if (this.phase !== "azi_waiting") return;
+
+    // уже участвует
+    if (this.aziPlayers.find(p => p.id === playerId)) return;
+
+    const entryCost = Math.floor(this.pot / this.aziPlayers.length);
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    if (action === "pass") return;
+
+    const actual = await this.deductFromBalance(player, entryCost);
+
+    if (actual <= 0) return;
+
+    this.pot += actual;
+
+    this.aziPlayers.push(player);
+
+    this.broadcastAziJoin(playerId, actual);
+
+    // 🔥 если игроков стало >= 2 — стартуем
+    if (this.aziPlayers.length >= 2) {
+        this.finishAziJoin();
+    }
+}
+broadcastAziJoin(playerId, amount) {
+
+    this.players.forEach(player => {
+
+        if (player.ws.readyState !== 1) return;
+
         player.ws.send(JSON.stringify({
-            type: "azi"
+            type: "aziPlayerJoined",
+            playerId,
+            amount,
+            pot: this.pot
         }));
     });
+}
+async deductFromBalance(player, amount) {
 
-    setTimeout(() => {
-        this.resetGame();
-    }, 1000);
+    const actual = Math.min(amount, player.balance);
+
+    player.balance -= actual;
+
+    await this.pool.query(
+        "UPDATE users SET balance = balance - $1 WHERE id = $2",
+        [actual, player.id]
+    );
+
+    if (player.ws.readyState === 1) {
+        player.ws.send(JSON.stringify({
+            type: "balanceUpdate",
+            balance: player.balance
+        }));
+    }
+
+    return actual;
+}
+finishAziJoin() {
+
+    this.activePlayers = [...this.aziPlayers];
+
+    this.deck = this.createDeck();
+    this.shuffle(this.deck);
+
+    this.trumpCard = this.deck.pop();
+    this.trump = this.trumpCard.suit;
+
+    this.hands = new Map();
+    this.tricks = {};
+    this.currentTrick = [];
+    this.leadSuit = null;
+    this.completedTricks = 0;
+
+    this.dealCards();
+
+    // 🔥 продолжаем игру за тот же pot
+    this.startBiddingPhase(true);
 }
 resetGame() {
 
