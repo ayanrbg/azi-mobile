@@ -14,8 +14,8 @@ class Game {
         this.hands = new Map();
         this.tricks = {};
 
+        this.pot = 0; // общий банк игры
         this.dealCards();
-
         this.currentTrick = [];
         this.leadSuit = null;
         this.currentPlayerIndex = 0; // кто ходит
@@ -88,7 +88,7 @@ startDiscardPhase() {
                 type: "requestDiscard",
                 phase: "discarding",
                 trump: this.trump,
-                pot: this.room.bet * this.players.length,
+                pot: this.pot,
                 tricks: {},
                 yourCards: this.hands.get(player.id),
                 yourTricks: 0
@@ -122,7 +122,7 @@ discardCard(playerId, cardIndex) {
             type: "gameUpdate",
             phase: "discarding",
             trump: this.trump,
-            pot: this.room.bet * this.players.length,
+            pot: this.pot,
             tricks: {},
             yourCards: this.hands.get(playerId),
             yourTricks: 0
@@ -138,83 +138,108 @@ startBiddingPhase() {
 
     this.phase = "bidding";
 
-    this.baseBet = this.room.bet;
-    this.currentBet = this.baseBet;
+    this.minRoomBet = 30;
+    this.currentBet = 0;
 
-    this.activePlayers = [...this.players];
+    this.activeBidders = [...this.players];
     this.currentPlayerIndex = 0;
 
-    this.playerBids = {};
-    this.activePlayers.forEach(p => {
-        this.playerBids[p.id] = 0;
+    this.playerContributions = {};
+    this.pot = 0;
+
+    this.activeBidders.forEach(p => {
+        this.playerContributions[p.id] = 0;
     });
 
-    // 🔥 Счётчик ходов
-    this.turnCount = 0;
-
-    // 🔥 Жёсткий лимит ходов
-    if (this.activePlayers.length === 2) {
-        this.maxTurns = 3;
-    } else {
-        this.maxTurns = this.activePlayers.length;
-    }
-
-    // Всем кроме первого — gameUpdate
     this.broadcastBiddingStateExceptCurrent();
-
-    // Первому — requestBid
     this.requestBid();
+}
+deductChips(playerId, amount) {
+
+    const player = this.activeBidders.find(p => p.id === playerId);
+    if (!player) return 0;
+
+    const available = player.balance;
+    const actual = Math.min(amount, available);
+
+    player.balance -= actual;
+    this.playerContributions[playerId] += actual;
+    this.pot += actual;
+
+    return actual;
 }
 requestBid() {
 
-    const player = this.activePlayers[this.currentPlayerIndex];
-
+    const player = this.activeBidders[this.currentPlayerIndex];
     if (!player) return;
 
     player.ws.send(JSON.stringify({
         type: "requestBid",
         phase: "bidding",
         trump: this.trump,
-        pot: this.currentBet * this.activePlayers.length,
+        pot: this.pot,
         currentBet: this.currentBet,
-        baseBet: this.baseBet,
-        minRaise: Math.floor(this.currentBet * 1.5),
-        currentPlayer: player.id,
-        yourCards: this.hands.get(player.id),
-        yourTricks: 0,
-        playerBids: this.playerBids
+        minRoomBet: this.minRoomBet,
+        yourContribution: this.playerContributions[player.id],
+        yourBalance: player.balance
     }));
 }
 bidAction(playerId, action, amount = null) {
 
     if (this.phase !== "bidding") return;
 
-    const player = this.activePlayers[this.currentPlayerIndex];
+    const player = this.activeBidders[this.currentPlayerIndex];
     if (!player || player.id !== playerId) return;
 
-    if (action === "raise") {
+    // PASS
+    if (action === "pass") {
 
-        let newBet;
+        this.activeBidders.splice(this.currentPlayerIndex, 1);
 
-        if (amount && amount > this.currentBet) {
-            newBet = amount;
-        } else {
-            newBet = Math.floor(this.currentBet * 1.5);
+        if (this.activeBidders.length === 1) {
+            this.endGame(this.activeBidders[0].id);
+            return;
         }
 
-        if (newBet <= this.currentBet) return;
+        if (this.currentPlayerIndex >= this.activeBidders.length) {
+            this.currentPlayerIndex = 0;
+        }
 
-        this.currentBet = newBet;
-        this.playerBids[playerId] = newBet;
+        this.broadcastBiddingStateExceptCurrent();
+        this.requestBid();
+        return;
+    }
 
-        this.lastRaiser = playerId;
-        this.roundAfterRaise = true;
+    // ПЕРВАЯ СТАВКА
+    if (this.currentBet === 0) {
+
+        if (amount < this.minRoomBet || amount > this.minRoomBet * 5) return;
+
+        this.deductChips(playerId, amount);
+        this.currentBet = this.playerContributions[playerId];
 
         this.nextBidTurn();
         return;
     }
 
-    if (action === "pass") {
+    // CALL
+    if (action === "call") {
+
+        const needed = this.currentBet - this.playerContributions[playerId];
+        this.deductChips(playerId, needed);
+
+        this.nextBidTurn();
+        return;
+    }
+
+    // DOUBLE
+    if (action === "double") {
+
+        const newBet = this.currentBet * 2;
+        const needed = newBet - this.playerContributions[playerId];
+
+        this.currentBet = newBet;
+        this.deductChips(playerId, needed);
 
         this.nextBidTurn();
         return;
@@ -222,61 +247,66 @@ bidAction(playerId, action, amount = null) {
 }
 broadcastBiddingStateExceptCurrent() {
 
-    const currentPlayerId = this.activePlayers[this.currentPlayerIndex].id;
+    const currentPlayer = this.activeBidders[this.currentPlayerIndex];
+    if (!currentPlayer) return;
 
-    this.players.forEach(player => {
+    const currentPlayerId = currentPlayer.id;
 
-        // ❗ Пропускаем того, у кого сейчас ход
+    this.activeBidders.forEach(player => {
+
         if (player.id === currentPlayerId) return;
+        if (player.ws.readyState !== 1) return;
 
-        if (player.ws.readyState === 1) {
-
-            player.ws.send(JSON.stringify({
-                type: "gameUpdate",
-                phase: "bidding",
-                trump: this.trump,
-                pot: this.currentBet * this.activePlayers.length,
-                currentBet: this.currentBet,
-                baseBet: this.baseBet,
-                currentPlayer: currentPlayerId,
-                tricks: this.tricks,
-                yourCards: this.hands.get(player.id),
-                yourTricks: this.tricks[player.id] || 0,
-                playerBids: this.playerBids
-            }));
-        }
+        player.ws.send(JSON.stringify({
+            type: "gameUpdate",
+            phase: "bidding",
+            trump: this.trump,
+            pot: this.pot,
+            currentBet: this.currentBet,
+            currentPlayer: currentPlayerId,
+            yourContribution: this.playerContributions[player.id],
+            yourBalance: player.balance
+        }));
     });
 }
 nextBidTurn() {
 
-    this.turnCount++;
+    const allMatched = this.activeBidders.every(p =>
+        this.playerContributions[p.id] === this.currentBet
+        || p.balance === 0
+    );
 
-    // 🔥 ЖЁСТКИЙ лимит
-    if (this.turnCount >= this.maxTurns) {
-        this.startPlayingPhase();
+    if (allMatched && this.currentBet > 0) {
+        this.finishBetting();
         return;
     }
 
     this.currentPlayerIndex++;
 
-    if (this.currentPlayerIndex >= this.activePlayers.length) {
+    if (this.currentPlayerIndex >= this.activeBidders.length) {
         this.currentPlayerIndex = 0;
     }
 
-    // 🔥 Рассылка
     this.broadcastBiddingStateExceptCurrent();
     this.requestBid();
 }
-nextPlayer() {
+finishBetting() {
 
-    this.currentPlayerIndex++;
+    // играть будут только те, кто остались
+    this.activePlayers = [...this.activeBidders];
 
-    if (this.currentPlayerIndex >= this.activePlayers.length) {
-        this.currentPlayerIndex = 0;
-    }
-
-    this.requestBid();
+    this.startPlayingPhase();
 }
+// nextPlayer() {
+
+//     this.currentPlayerIndex++;
+
+//     if (this.currentPlayerIndex >= this.activePlayers.length) {
+//         this.currentPlayerIndex = 0;
+//     }
+
+//     this.requestBid();
+// }
 startPlayingPhase() {
 
     this.phase = "playing";
@@ -309,9 +339,8 @@ broadcastPlayingStateExceptCurrent() {
             phase: "playing",
             trump: this.trump,
             trumpCard: this.trumpCard,
-            pot: this.currentBet,
+            pot: this.pot,
             currentBet: this.currentBet,
-            baseBet: this.baseBet,
             currentPlayer: currentPlayerId,
             tricks: this.tricks,
             yourCards: this.hands.get(player.id),
@@ -331,7 +360,7 @@ broadcastPlayingState() {
                 type: "gameUpdate",
                 phase: "playing",
                 trump: this.trump,
-                pot: this.currentBet,
+                pot: this.pot,
                 currentPlayer: this.activePlayers[this.currentPlayerIndex].id,
                 tricks: this.tricks,
                 yourCards: this.hands.get(player.id),
@@ -357,9 +386,8 @@ requestMove() {
         trump: this.trump,
         trumpCard: this.trumpCard,
 
-        pot: this.currentBet * this.activePlayers.length,
+        pot: this.pot,
         currentBet: this.currentBet,
-        baseBet: this.baseBet,
 
         currentPlayer: this.activePlayers[this.currentPlayerIndex].id,
 
@@ -547,7 +575,7 @@ endGame(winnerId) {
 
     this.phase = "finished";
 
-    const pot = this.currentBet * this.activePlayers.length;
+    const pot = this.pot;
 
     this.players.forEach(player => {
         player.ws.send(JSON.stringify({
@@ -645,6 +673,9 @@ sendGameStarted() {
             players: playersDictionary
         }));
     });
+
+    // 🔥 ВАЖНО — запускаем торги
+    this.startBiddingPhase();
 }
     sendGameUpdate() {
 
@@ -663,28 +694,28 @@ sendGameStarted() {
             }
         });
     }
-    broadcastBiddingState() {
+//     broadcastBiddingState() {
 
-    this.players.forEach(player => {
+//     this.players.forEach(player => {
 
-        if (player.ws.readyState === 1) {
+//         if (player.ws.readyState === 1) {
 
-            player.ws.send(JSON.stringify({
-                type: "gameUpdate",
-                phase: "bidding",
-                trump: this.trump,
-                pot: this.currentBet * this.activePlayers.length,
-                currentBet: this.currentBet,
-                baseBet: this.baseBet,
-                currentPlayer: this.activePlayers[this.currentPlayerIndex]?.id,
-                tricks: this.tricks,
-                yourCards: this.hands.get(player.id),
-                yourTricks: this.tricks[player.id] || 0,
-                playerBids: this.playerBids
-            }));
-        }
-    });
-}
+//             player.ws.send(JSON.stringify({
+//                 type: "gameUpdate",
+//                 phase: "bidding",
+//                 trump: this.trump,
+//                 pot: this.pot,
+//                 currentBet: this.currentBet,
+//                 baseBet: this.baseBet,
+//                 currentPlayer: this.activePlayers[this.currentPlayerIndex]?.id,
+//                 tricks: this.tricks,
+//                 yourCards: this.hands.get(player.id),
+//                 yourTricks: this.tricks[player.id] || 0,
+//                 playerBids: this.playerBids
+//             }));
+//         }
+//     });
+// }
 }
 
 module.exports = Game;
