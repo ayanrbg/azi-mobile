@@ -78,7 +78,14 @@ addPlayer(player) {
 }
 
     removePlayer(playerId) {
+
     this.players = this.players.filter(p => p.id !== playerId);
+
+    // 🔥 если игра идёт — сообщаем игре
+    if (this.game) {
+        this.game.handlePlayerLeave(playerId);
+    }
+
     this.broadcastRoomUpdate();
 }
 

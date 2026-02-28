@@ -689,7 +689,8 @@ async endGame(winnerId) {
     });
 
     setTimeout(() => {
-        this.resetGame();
+        this.room.status = "waiting";
+        this.room.game = null;
     }, 1000);
 }
 handleAzi() {
@@ -804,6 +805,70 @@ broadcastBidPlaced(playerId, action, amount) {
             stage: this.biddingStage
         }));
     });
+}
+async handlePlayerLeave(playerId) {
+
+    // удаляем из общего списка игроков
+    this.players = this.players.filter(p => p.id !== playerId);
+
+    // удаляем из активных торгов
+    if (this.activeBidders) {
+        this.activeBidders = this.activeBidders.filter(p => p.id !== playerId);
+    }
+
+    // удаляем из активных играющих
+    if (this.activePlayers) {
+        this.activePlayers = this.activePlayers.filter(p => p.id !== playerId);
+    }
+
+    // если остался один игрок — он победитель
+    if (this.players.length === 1) {
+        const winnerId = this.players[0].id;
+        await this.endGame(winnerId);
+        this.room.status = "waiting";
+        this.room.game = null;
+        return;
+    }
+
+    // если игра в фазе торгов
+    if (this.phase === "bidding") {
+
+        // если остался один активный участник торгов — он победил
+        if (this.activeBidders.length === 1) {
+            await this.endGame(this.activeBidders[0].id);
+            this.room.status = "waiting";
+            this.room.game = null;
+            return;
+        }
+
+        // корректируем индекс хода
+        if (this.currentPlayerIndex >= this.activeBidders.length) {
+            this.currentPlayerIndex = 0;
+        }
+
+        this.broadcastBiddingStateExceptCurrent();
+        this.requestBid();
+        return;
+    }
+
+    // если игра в фазе playing
+    if (this.phase === "playing") {
+
+        if (this.activePlayers.length === 1) {
+            await this.endGame(this.activePlayers[0].id);
+            this.room.status = "waiting";
+            this.room.game = null;
+            return;
+        }
+
+        if (this.currentPlayerIndex >= this.activePlayers.length) {
+            this.currentPlayerIndex = 0;
+        }
+
+        this.broadcastPlayingStateExceptCurrent();
+        this.requestMove();
+        return;
+    }
 }
     sendGameUpdate() {
 
