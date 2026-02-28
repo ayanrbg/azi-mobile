@@ -15,6 +15,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const url = require('url');
 const roomManager = require('./rooms.js');
+roomManager.setPool(pool);
 
 const app = express();
 app.use(express.json());
@@ -360,3 +361,4 @@ ws.on('close', () => {
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+module.exports.pool = pool;

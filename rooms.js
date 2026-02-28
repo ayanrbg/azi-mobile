@@ -2,7 +2,8 @@ const { randomUUID } = require('crypto');
 const Game = require('./game');
 
 class Room {
-    constructor({ name, bet, password, maxPlayers, icon, owner }) {
+    constructor({ name, bet, password, maxPlayers, icon, owner, pool}) {
+        this.pool = pool;
         this.id = randomUUID();
         this.name = name;
         this.bet = bet; // baseBet
@@ -50,7 +51,7 @@ broadcastRoomUpdate() {
 // }
 startGame() {
     this.status = "playing";
-    this.game = new Game(this);
+    this.game = new Game(this, this.pool);
 }
 addPlayer(player) {
 
@@ -114,10 +115,13 @@ addPlayer(player) {
 class RoomManager {
     constructor() {
         this.rooms = new Map();
+        this.pool = null;
     }
-
+    setPool(pool) {
+        this.pool = pool;
+    }
     createRoom(data, owner) {
-        const room = new Room({ ...data, owner });
+        const room = new Room({ ...data, owner, pool: this.pool});
         this.rooms.set(room.id, room);
         return room;
     }

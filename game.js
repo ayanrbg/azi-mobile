@@ -1,8 +1,14 @@
 class Game {
 
-    constructor(room) {
+    constructor(room, pool) {
         this.room = room;
-        this.players = room.players;
+        this.pool = pool;
+        this.players = room.players.map(p => ({
+            id: p.id,
+            name: p.name,
+            balance: p.balance,
+            ws: p.ws
+        }));
 
         this.phase = "dealing";
         this.deck = this.createDeck();
@@ -600,21 +606,40 @@ getCardRankValue(rank) {
     const order = ["6", "7", "8", "9", "10", "J", "Q", "K", "A"];
     return order.indexOf(rank);
 }
-endGame(winnerId) {
+async endGame(winnerId) {
 
     this.phase = "finished";
-
     const pot = this.pot;
+
+    try {
+        await this.pool.query(
+            "UPDATE users SET balance = balance + $1 WHERE id = $2",
+            [pot, winnerId]
+        );
+    } catch (err) {
+        console.error("Balance update error:", err);
+        return;
+    }
+
+    const winner = this.players.find(p => p.id === winnerId);
+
+    if (winner) {
+        winner.balance += pot;
+
+        if (winner.ws?.user) {
+            winner.ws.user.balance += pot;
+        }
+    }
 
     this.players.forEach(player => {
         player.ws.send(JSON.stringify({
             type: "gameWinner",
             winner: winnerId,
-            pot
+            pot,
+            winnerBalance: winner?.balance
         }));
     });
 
-    // ⏳ Небольшая пауза (1 секунда)
     setTimeout(() => {
         this.resetGame();
     }, 1000);
@@ -650,7 +675,13 @@ resetGame() {
     this.completedTricks = 0;
 
     // все игроки снова активны
-    this.players = this.room.players;
+    this.players = this.room.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        balance: p.balance,
+        ws: p.ws
+    }));
+
     this.activePlayers = [...this.players];
 
     // раздаём заново
