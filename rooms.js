@@ -75,6 +75,10 @@ addPlayer(player) {
     });
 
     this.broadcastRoomUpdate();
+    // 🔥 Если игра уже идёт — отправляем состояние новому игроку
+    if (this.status === "playing" && this.game) {
+        this.game.sendCurrentStateToPlayer(this.players[this.players.length - 1]);
+    }
 }
 
     removePlayer(playerId) {
