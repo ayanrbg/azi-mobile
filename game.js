@@ -13,7 +13,7 @@ class Game {
 
         this.hands = new Map();
         this.tricks = {};
-
+        this.biddingStage = 1;
         this.pot = 0; // общий банк игры
         this.dealCards();
         this.currentTrick = [];
@@ -82,7 +82,7 @@ startDiscardPhase() {
     this.phase = "discarding";
     this.discardedPlayers = new Set();
 
-    this.players.forEach(player => {
+    this.activePlayers.forEach(player => {
         if (player.ws.readyState === 1) {
             player.ws.send(JSON.stringify({
                 type: "requestDiscard",
@@ -130,8 +130,8 @@ discardCard(playerId, cardIndex) {
     }
 
     // 🔹 если все сбросили → bidding
-    if (this.discardedPlayers.size === this.players.length) {
-        this.startBiddingPhase();
+    if (this.discardedPlayers.size === this.activePlayers.length) {
+        this.startPlayingPhase();
     }
 }
 startBiddingPhase() {
@@ -176,6 +176,7 @@ requestBid() {
     player.ws.send(JSON.stringify({
         type: "requestBid",
         phase: "bidding",
+        stage: this.biddingStage,
         trump: this.trump,
         pot: this.pot,
         currentBet: this.currentBet,
@@ -285,17 +286,45 @@ nextBidTurn() {
 
     if (this.currentPlayerIndex >= this.activeBidders.length) {
         this.currentPlayerIndex = 0;
+
+        // закончился первый круг
+        if (this.biddingStage === 1) {
+            this.biddingStage = 2;
+            this.revealHandsToPlayers();
+        }
     }
 
     this.broadcastBiddingStateExceptCurrent();
     this.requestBid();
+}
+revealHandsToPlayers() {
+
+    const currentPlayerId = this.activeBidders[this.currentPlayerIndex].id;
+
+    this.activeBidders.forEach(player => {
+
+        if (player.ws.readyState !== 1) return;
+
+        player.ws.send(JSON.stringify({
+            type: "gameUpdate",
+            phase: "bidding",
+            stage: 2,
+            trump: this.trump,
+            pot: this.pot,
+            currentBet: this.currentBet,
+            currentPlayer: currentPlayerId,
+            yourCards: this.hands.get(player.id),
+            yourContribution: this.playerContributions[player.id],
+            yourBalance: player.balance
+        }));
+    });
 }
 finishBetting() {
 
     // играть будут только те, кто остались
     this.activePlayers = [...this.activeBidders];
 
-    this.startPlayingPhase();
+    this.startDiscardPhase();
 }
 // nextPlayer() {
 

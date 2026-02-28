@@ -150,7 +150,7 @@ ws://localhost:3002?token=
 ## Игра
 ### Готовность к игре
 
-```json
+<!-- ```json
 {
   "type": "ready"
 }
@@ -160,17 +160,17 @@ ws://localhost:3002?token=
 {
   "type": "roomUpdate" // ready
 }
-```
-### Раздача карт и решение на игру
+``` -->
+<!-- ### Раздача карт и решение на игру
 ОТ СЕРВЕРА
 ```json
 {
   "type": "requestPlayDecision",
   "phase": "deciding"
 }
-```
+``` -->
 
-ОТ КЛИЕНТА
+<!-- ОТ КЛИЕНТА
 ```json
 {
   "type": "decidePlaying",
@@ -178,7 +178,7 @@ ws://localhost:3002?token=
     "play": true
   }
 }
-```
+``` -->
 
 ### Запрос на удаление карты
 ОТ СЕРВЕРА
@@ -221,7 +221,8 @@ ws://localhost:3002?token=
 {
   "type": "bidAction",
   "data": {
-    "action": "raise" //pass
+    "action": "pass" | "bet" | "call" | "double",
+    "amount": "number (только для bet)"
   }
 }
 ```
