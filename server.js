@@ -326,7 +326,7 @@ if (data.type === "bidAction") {
     const room = roomManager.getRoom(ws.currentRoom);
     if (!room || !room.game) return;
 
-    room.game.bidAction(
+    await room.game.bidAction(
         ws.user.id.toString(),
         data.data.action,
         data.data.amount || null
