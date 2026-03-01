@@ -209,22 +209,71 @@ requestBid() {
     const player = this.activeBidders[this.currentPlayerIndex];
     if (!player) return;
 
-    // 🚨 если игрок уже all-in — пропускаем
     if (this.allInPlayers.has(player.id)) {
         this.nextBidTurn();
         return;
     }
 
+    const yourContribution = this.playerContributions[player.id];
+    const callBet = Math.max(0, this.currentBet - yourContribution);
+
+    let minBet = null;
+    let maxBet = null;
+    let doubleBet = null;
+    let doubleCallAmount = null;
+
+    // 🟢 СТАДИЯ 1
+    if (this.biddingStage === 1) {
+
+        if (this.currentBet === 0) {
+            minBet = this.minRoomBet;
+            maxBet = this.minRoomBet * 5;
+        } else {
+
+            // x2
+            doubleBet = this.currentBet * 2;
+            doubleCallAmount = doubleBet - yourContribution;
+
+            minBet = doubleBet;
+            maxBet = doubleBet;
+        }
+    }
+
+    // 🟡 СТАДИЯ 2 (проценты)
+    if (this.biddingStage === 2) {
+        const base = this.currentBet;
+        minBet = Math.floor(base * 1.6);
+        maxBet = Math.floor(base * 36);
+    }
+
+    // all-in логика
+    const mustAllInForCall = player.balance < callBet;
+    const mustAllInForRaise = minBet !== null && player.balance < minBet;
+
+    const canAllIn = mustAllInForCall || mustAllInForRaise;
+    const allInAmount = player.balance;
+
     player.ws.send(JSON.stringify({
         type: "requestBid",
         phase: "bidding",
         stage: this.biddingStage,
+
         trump: this.trump,
         pot: this.pot,
         currentBet: this.currentBet,
-        minRoomBet: this.minRoomBet,
-        yourContribution: this.playerContributions[player.id],
-        yourBalance: player.balance
+
+        yourContribution,
+        yourBalance: player.balance,
+
+        callBet,
+        minBet,
+        maxBet,
+
+        doubleBet,
+        doubleCallAmount,
+
+        allIn: canAllIn,
+        allInAmount
     }));
 }
 async bidAction(playerId, action, amount = null) {
