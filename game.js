@@ -35,18 +35,47 @@ startDiscardPhase() {
     this.phase = "discarding";
     this.discardedPlayers = new Set();
 
+    const activeIds = this.activePlayers.map(p => p.id);
+
+    // 🔥 Всем в комнате сообщаем о начале фазы
+    this.room.players.forEach(player => {
+
+        if (player.ws.readyState !== 1) return;
+
+        player.ws.send(JSON.stringify({
+            type: "gameUpdate",
+            phase: "discarding",
+            trump: this.trump,
+            pot: this.pot,
+            activePlayers: activeIds
+        }));
+    });
+
+    // 🔥 Теперь каждому активному игроку — requestDiscard + таймер
     this.activePlayers.forEach(player => {
-        if (player.ws.readyState === 1) {
-            player.ws.send(JSON.stringify({
-                type: "requestDiscard",
-                phase: "discarding",
-                trump: this.trump,
-                pot: this.pot,
-                tricks: {},
-                yourCards: this.hands.get(player.id),
-                yourTricks: 0
-            }));
-        }
+
+        if (player.ws.readyState !== 1) return;
+
+        player.ws.send(JSON.stringify({
+            type: "requestDiscard",
+            phase: "discarding",
+            trump: this.trump,
+            pot: this.pot,
+            yourCards: this.hands.get(player.id),
+            yourTricks: this.tricks[player.id] || 0,
+            timeLimit: 5
+        }));
+
+        // ⏳ Таймер 5 секунд
+        setTimeout(() => {
+
+            if (this.phase !== "discarding") return;
+            if (this.discardedPlayers.has(player.id)) return;
+
+            // авто-сброс первой карты
+            this.discardCard(player.id, 0);
+
+        }, 5000);
     });
 }
 getSpectators() {
