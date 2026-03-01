@@ -421,7 +421,25 @@ finishBetting() {
     // играть будут только те, кто остались
     this.activePlayers = [...this.activeBidders];
 
-    this.startDiscardPhase();
+    const activeIds = this.activePlayers.map(p => p.id);
+
+    // 🔥 Сообщение о завершении торгов
+    this.room.players.forEach(player => {
+
+        if (player.ws.readyState !== 1) return;
+
+        player.ws.send(JSON.stringify({
+            type: "bettingFinished",
+            pot: this.pot,
+            finalBet: this.currentBet,
+            players: activeIds
+        }));
+    });
+
+    // 🔥 Небольшая пауза перед discard (чтобы UI успел показать)
+    setTimeout(() => {
+        this.startDiscardPhase();
+    }, 1500);
 }
 
 startPlayingPhase() {
