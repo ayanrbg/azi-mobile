@@ -29,26 +29,6 @@ broadcastRoomUpdate() {
         }
     });
 }
-// toggleReady(playerId) {
-
-//     // ❗ Нельзя ready если игра уже идёт
-//     if (this.status === "playing") return;
-    
-//     const player = this.players.find(p => p.id === playerId);
-
-//     if (!player) return;
-
-//     player.ready = !player.ready;
-
-//     this.broadcastRoomUpdate();
-//     // если все ready и минимум 2 игрока
-//     if (
-//         this.players.length >= 2 &&
-//         this.players.every(p => p.ready)
-//     ) {
-//         this.startGame();
-//     }
-// }
 startGame() {
     this.status = "playing";
     this.game = new Game(this, this.pool);
@@ -77,7 +57,18 @@ addPlayer(player) {
     this.broadcastRoomUpdate();
     // 🔥 Если игра уже идёт — отправляем состояние новому игроку
     if (this.status === "playing" && this.game) {
-        this.game.sendCurrentStateToPlayer(this.players[this.players.length - 1]);
+        // отправляем gameStarted
+    player.ws.send(JSON.stringify({
+        type: "gameStarted",
+        phase: this.game.phase,
+        trumpCard: this.game.trumpCard,
+        players: Object.fromEntries(
+            this.game.players.map(p => [p.id, 4])
+        )
+    }));
+
+    // и текущее состояние игры
+    this.game.sendCurrentStateToPlayer(player);
     }
 }
 

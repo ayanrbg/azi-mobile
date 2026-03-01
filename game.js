@@ -21,69 +21,15 @@ class Game {
         this.tricks = {};
         this.biddingStage = 1;
         this.pot = 0; // общий банк игры
-        this.dealCards();
-        this.sendGameStarted();
+        
         this.currentTrick = [];
         this.leadSuit = null;
         this.currentPlayerIndex = 0; // кто ходит
         this.completedTricks = 0;
+
+        this.dealCards();
+        this.sendGameStarted();
     }
-//     requestDiscard() {
-
-//     this.discardedPlayers = new Set();
-
-//     this.players.forEach(player => {
-//         if (player.ws.readyState === 1) {
-//             player.ws.send(JSON.stringify({
-//                 type: "requestDiscard"
-//             }));
-//         }
-//     });
-// }
-// startDecisionPhase() {
-
-//     this.phase = "deciding";
-//     this.playersDecisions = new Map();
-
-//     this.players.forEach(player => {
-//         if (player.ws.readyState === 1) {
-//             player.ws.send(JSON.stringify({
-//                 type: "requestPlayDecision",
-//                 phase: "deciding",
-
-//                 // 👇 полная карта
-//                 trumpCard: this.trumpCard,
-//                 trump: this.trumpCard.suit,
-
-//                 pot: this.room.bet * this.players.length,
-//                 tricks: {},
-//                 yourCards: this.hands.get(player.id),
-//                 yourTricks: 0
-//             }));
-//         }
-//     });
-// }
-// decidePlaying(playerId, play) {
-
-//     if (this.phase !== "deciding") return;
-//     this.playersDecisions.set(playerId, play);
-
-//     // ждём пока все ответят
-//     if (this.playersDecisions.size !== this.players.length) return;
-
-//     // фильтруем тех кто играет
-//     this.players = this.players.filter(p =>
-//         this.playersDecisions.get(p.id) === true
-//     );
-
-//     // если меньше 2 игроков → отменяем
-//     if (this.players.length < 2) {
-//         this.room.status = "waiting";
-//         return;
-//     }
-
-//     this.startDiscardPhase();
-// }
 startDiscardPhase() {
 
     this.phase = "discarding";
@@ -186,6 +132,7 @@ startBiddingPhase(isCarryOver = false) {
         trump: this.trump,
         pot: this.pot,
         currentBet: this.currentBet,
+        stage: this.biddingStage,
         currentPlayer: this.activeBidders[this.currentPlayerIndex]?.id
     });
     this.requestBid();
@@ -361,6 +308,16 @@ sendCurrentStateToPlayer(player) {
 
     if (!player?.ws || player.ws.readyState !== 1) return;
 
+    let currentPlayerId = null;
+
+    if (this.phase === "bidding") {
+        currentPlayerId = this.activeBidders?.[this.currentPlayerIndex]?.id;
+    }
+
+    if (this.phase === "playing") {
+        currentPlayerId = this.activePlayers?.[this.currentPlayerIndex]?.id;
+    }
+
     player.ws.send(JSON.stringify({
         type: "gameUpdate",
         phase: this.phase,
@@ -368,8 +325,9 @@ sendCurrentStateToPlayer(player) {
         trumpCard: this.trumpCard,
         pot: this.pot,
         currentBet: this.currentBet,
-        currentPlayer: this.activePlayers?.[this.currentPlayerIndex]?.id,
+        currentPlayer: currentPlayerId,
         tricks: this.tricks,
+        stage: this.biddingStage,
         currentTrick: this.currentTrick,
         leadSuit: this.leadSuit
     }));
@@ -436,16 +394,7 @@ finishBetting() {
 
     this.startDiscardPhase();
 }
-// nextPlayer() {
 
-//     this.currentPlayerIndex++;
-
-//     if (this.currentPlayerIndex >= this.activePlayers.length) {
-//         this.currentPlayerIndex = 0;
-//     }
-
-//     this.requestBid();
-// }
 startPlayingPhase() {
 
     this.phase = "playing";
@@ -932,73 +881,7 @@ finishAzi() {
     // 🔥 ВАЖНО
     this.sendGameStarted(true);
 }
-// finishAziWithoutNewPlayers() {
 
-//     // играют только игроки ничьи
-//     this.activePlayers = [...this.aziPlayers];
-
-//     // новая колода
-//     this.deck = this.createDeck();
-//     this.shuffle(this.deck);
-
-//     this.trumpCard = this.deck.pop();
-//     this.trump = this.trumpCard.suit;
-
-//     this.hands = new Map();
-//     this.tricks = {};
-//     this.currentTrick = [];
-//     this.leadSuit = null;
-//     this.completedTricks = 0;
-//     this.biddingStage = 1;
-
-//     // 🔥 ВАЖНО: pot НЕ трогаем
-
-//     this.dealCards();
-
-//     this.startBiddingPhase(true);
-// }
-// async aziJoinAction(playerId, action) {
-
-//     if (this.phase !== "azi_waiting") return;
-
-//     // уже участвует
-//     if (this.aziPlayers.find(p => p.id === playerId)) return;
-
-//     const entryCost = Math.floor(this.pot / this.aziPlayers.length);
-//     const player = this.players.find(p => p.id === playerId);
-//     if (!player) return;
-
-//     if (action === "pass") return;
-
-//     const actual = await this.deductFromBalance(player, entryCost);
-
-//     if (actual <= 0) return;
-
-//     this.pot += actual;
-
-//     this.aziPlayers.push(player);
-
-//     this.broadcastAziJoin(playerId, actual);
-
-//     // 🔥 если игроков стало >= 2 — стартуем
-//     if (this.aziPlayers.length >= 2) {
-//         this.finishAziJoin();
-//     }
-// }
-// broadcastAziJoin(playerId, amount) {
-
-//     this.players.forEach(player => {
-
-//         if (player.ws.readyState !== 1) return;
-
-//         player.ws.send(JSON.stringify({
-//             type: "aziPlayerJoined",
-//             playerId,
-//             amount,
-//             pot: this.pot
-//         }));
-//     });
-// }
 async deductFromBalance(player, amount) {
 
     const actual = Math.min(amount, player.balance);
@@ -1019,27 +902,7 @@ async deductFromBalance(player, amount) {
 
     return actual;
 }
-// finishAziJoin() {
 
-//     this.activePlayers = [...this.aziPlayers];
-
-//     this.deck = this.createDeck();
-//     this.shuffle(this.deck);
-
-//     this.trumpCard = this.deck.pop();
-//     this.trump = this.trumpCard.suit;
-
-//     this.hands = new Map();
-//     this.tricks = {};
-//     this.currentTrick = [];
-//     this.leadSuit = null;
-//     this.completedTricks = 0;
-
-//     this.dealCards();
-
-//     // 🔥 продолжаем игру за тот же pot
-//     this.startBiddingPhase(true);
-// }
 resetGame() {
 
     // новая колода
@@ -1069,8 +932,7 @@ resetGame() {
     // раздаём заново
     this.dealCards();
 
-    // снова deciding
-    // this.startDecisionPhase();
+    
 }
     shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
@@ -1217,28 +1079,6 @@ async handlePlayerLeave(playerId) {
             }
         });
     }
-//     broadcastBiddingState() {
-
-//     this.players.forEach(player => {
-
-//         if (player.ws.readyState === 1) {
-
-//             player.ws.send(JSON.stringify({
-//                 type: "gameUpdate",
-//                 phase: "bidding",
-//                 trump: this.trump,
-//                 pot: this.pot,
-//                 currentBet: this.currentBet,
-//                 baseBet: this.baseBet,
-//                 currentPlayer: this.activePlayers[this.currentPlayerIndex]?.id,
-//                 tricks: this.tricks,
-//                 yourCards: this.hands.get(player.id),
-//                 yourTricks: this.tricks[player.id] || 0,
-//                 playerBids: this.playerBids
-//             }));
-//         }
-//     });
-// }
 }
 
 module.exports = Game;
