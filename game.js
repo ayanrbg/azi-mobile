@@ -24,7 +24,8 @@ class Game {
         
         this.currentTrick = [];
         this.leadSuit = null;
-        this.currentPlayerIndex = 0; // кто ходит
+        this.currentPlayerIndex = 0;// кто ходит
+        this.startPlayerIndex = 0; 
         this.completedTricks = 0;
 
         this.dealCards();
@@ -140,7 +141,7 @@ startBiddingPhase(isCarryOver = false) {
     this.currentBet = 0;
 
     this.activeBidders = [...this.players];
-    this.currentPlayerIndex = 0;
+    this.currentPlayerIndex = this.startPlayerIndex;
 
     this.playerContributions = {};
     this.allInPlayers = new Set();
@@ -769,20 +770,20 @@ async endGame(winnerId) {
 }
 restartRound() {
 
-    // ❗ Удаляем игроков с балансом 0
+    // 1️⃣ Удаляем игроков с балансом 0
     this.room.players = this.room.players.filter(p => {
         const balance = p.ws?.user?.balance ?? p.balance;
         return balance > 0;
     });
 
-    // если осталось меньше 2 игроков — остановка
+    // 2️⃣ Если меньше 2 — остановка
     if (this.room.players.length < 2) {
         this.room.status = "waiting";
         this.room.game = null;
         return;
     }
 
-    // пересобираем игроков
+    // 3️⃣ Пересобираем игроков
     this.players = this.room.players.map(p => ({
         id: p.id,
         name: p.name,
@@ -792,14 +793,21 @@ restartRound() {
 
     this.activePlayers = [...this.players];
 
-    // новая колода
+    // 4️⃣ Сдвигаем очередь
+    this.startPlayerIndex++;
+
+    if (this.startPlayerIndex >= this.players.length) {
+        this.startPlayerIndex = 0;
+    }
+
+    // 5️⃣ Новая колода
     this.deck = this.createDeck();
     this.shuffle(this.deck);
 
     this.trumpCard = this.deck.pop();
     this.trump = this.trumpCard.suit;
 
-    // сброс состояния
+    // 6️⃣ Сброс состояния
     this.hands = new Map();
     this.tricks = {};
     this.currentTrick = [];
@@ -808,7 +816,7 @@ restartRound() {
     this.biddingStage = 1;
     this.pot = 0;
 
-    // 🔥 старт новой игры
+    // 7️⃣ Старт новой игры
     this.dealCards();
     this.sendGameStarted();
 }
