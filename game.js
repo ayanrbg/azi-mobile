@@ -113,25 +113,37 @@ discardCard(playerId, cardIndex) {
 
     this.discardedPlayers.add(playerId);
 
-    // 🔹 СРАЗУ отправляем обновление ТОЛЬКО этому игроку
-    const player = this.players.find(p => p.id === playerId);
+    
 
-    if (player && player.ws.readyState === 1) {
+    if (this.discardedPlayers.size === this.activePlayers.length) {
+
+    // отправляем discardEnded каждому игроку
+    this.activePlayers.forEach(player => {
+
+        if (player.ws.readyState !== 1) return;
+
         player.ws.send(JSON.stringify({
-            type: "gameUpdate",
-            phase: "discarding",
+            type: "discardEnded",
             trump: this.trump,
             pot: this.pot,
-            tricks: {},
-            yourCards: this.hands.get(playerId),
-            yourTricks: 0
+            yourCards: this.hands.get(player.id),
+            yourTricks: this.tricks[player.id] || 0
         }));
-    }
 
-    // 🔹 если все сбросили → bidding
-    if (this.discardedPlayers.size === this.activePlayers.length) {
+    });
+
+    // зрителям тоже можно отправить фазу
+    this.broadcastToSpectators({
+        type: "gameUpdate",
+        phase: "playing",
+        trump: this.trump,
+        pot: this.pot
+    });
+
+    setTimeout(() => {
         this.startPlayingPhase();
-    }
+    }, 500);
+}
 }
 startBiddingPhase(isCarryOver = false) {
 
