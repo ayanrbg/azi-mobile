@@ -201,7 +201,12 @@ wss.on('connection', async (ws, req) => {
             message: "Invalid room data"
         }));
     }
-
+    if (ws.user.balance <= 0) {
+        return ws.send(JSON.stringify({
+            type: "error",
+            message: "You don't have enough balance to create a room"
+        }));
+    }
     const room = roomManager.createRoom(
         { name, bet, password, maxPlayers, icon },
         ws.user
@@ -247,6 +252,13 @@ if (data.type === "joinRoom") {
         return; // уже в этой комнате
     }
     try {
+        if (ws.user.balance <= 0) {
+            return ws.send(JSON.stringify({
+                type: "error",
+                message: "You don't have enough balance to join the room"
+            }));
+        }
+
         room.addPlayer({
             ...ws.user,
             ws

@@ -3,13 +3,38 @@ class Game {
     constructor(room, pool) {
         this.room = room;
         this.pool = pool;
-        this.players = room.players.map(p => ({
+        
+        // уведомляем игроков с 0 балансом
+        this.room.players.forEach(p => {
+
+            const balance = p.ws?.user?.balance ?? p.balance;
+
+            if (balance <= 0 && p.ws?.readyState === 1) {
+                p.ws.send(JSON.stringify({
+                    type: "kickedFromRoom",
+                    reason: "no_balance"
+                }));
+            }
+        });    
+
+        // 🔥 удаляем игроков с балансом 0 из комнаты
+        this.room.players = this.room.players.filter(p => {
+            const balance = p.ws?.user?.balance ?? p.balance;
+            return balance > 0;
+        });
+        this.players = room.players
+        .filter(p => (p.ws?.user?.balance ?? p.balance) > 0)
+        .map(p => ({
             id: p.id,
             name: p.name,
-            balance: p.balance,
+            balance: p.ws?.user?.balance ?? p.balance,
             ws: p.ws
         }));
-
+        if (this.players.length < 2) {
+            this.room.status = "waiting";
+            this.room.game = null;
+            return;
+        }
         this.phase = "dealing";
         this.deck = this.createDeck();
         this.shuffle(this.deck);
@@ -206,7 +231,13 @@ async deductChips(playerId, amount) {
         console.error("Deduct error:", err);
     }
 
-    // 🔥 ВОТ ЭТО ДОБАВЛЯЕМ
+    // 🔥 обновляем баланс в комнате
+    const roomPlayer = this.room.players.find(p => p.id === playerId);
+    if (roomPlayer) {
+        roomPlayer.balance = player.balance;
+    }
+
+    // 🔥 отправляем игроку новый баланс
     if (player.ws.readyState === 1) {
         player.ws.send(JSON.stringify({
             type: "balanceUpdate",
