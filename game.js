@@ -46,7 +46,7 @@ startDiscardPhase() {
         player.ws.send(JSON.stringify({
             type: "gameUpdate",
             phase: "discarding",
-            trump: this.trump,
+            trumpCard: this.trumpCard,
             pot: this.pot,
             activePlayers: activeIds
         }));
@@ -60,7 +60,7 @@ startDiscardPhase() {
         player.ws.send(JSON.stringify({
             type: "requestDiscard",
             phase: "discarding",
-            trump: this.trump,
+            trumpCard: this.trumpCard,
             pot: this.pot,
             yourCards: this.hands.get(player.id),
             yourTricks: this.tricks[player.id] || 0,
@@ -124,7 +124,7 @@ discardCard(playerId, cardIndex) {
 
         player.ws.send(JSON.stringify({
             type: "discardEnded",
-            trump: this.trump,
+            trumpCard: this.trumpCard,
             pot: this.pot,
             yourCards: this.hands.get(player.id),
             yourTricks: this.tricks[player.id] || 0
@@ -136,7 +136,7 @@ discardCard(playerId, cardIndex) {
     this.broadcastToSpectators({
         type: "gameUpdate",
         phase: "playing",
-        trump: this.trump,
+        trumpCard: this.trumpCard,
         pot: this.pot
     });
 
@@ -171,7 +171,7 @@ startBiddingPhase(isCarryOver = false) {
     this.broadcastToSpectators({
         type: "gameUpdate",
         phase: "bidding",
-        trump: this.trump,
+        trumpCard: this.trumpCard,
         pot: this.pot,
         currentBet: this.currentBet,
         stage: this.biddingStage,
@@ -270,7 +270,7 @@ requestBid() {
         phase: "bidding",
         stage: this.biddingStage,
 
-        trump: this.trump,
+        trumpCard: this.trumpCard,
         pot: this.pot,
         currentBet: this.currentBet,
 
@@ -377,7 +377,7 @@ broadcastBiddingStateExceptCurrent() {
         player.ws.send(JSON.stringify({
             type: "gameUpdate",
             phase: "bidding",
-            trump: this.trump,
+            trumpCard: this.trumpCard,
             pot: this.pot,
             currentBet: this.currentBet,
             currentPlayer: currentPlayerId,
@@ -389,7 +389,7 @@ broadcastBiddingStateExceptCurrent() {
     this.broadcastToSpectators({
         type: "gameUpdate",
         phase: "bidding",
-        trump: this.trump,
+        trumpCard: this.trumpCard,
         pot: this.pot,
         currentBet: this.currentBet,
         currentPlayer: currentPlayerId
@@ -469,7 +469,7 @@ revealHandsToPlayers() {
             type: "cardsReveal",
             phase: "bidding",
             stage: 2,
-            trump: this.trump,
+            trumpCard: this.trumpCard,
             pot: this.pot,
             currentBet: this.currentBet,
             yourContribution: this.playerContributions[player.id],
@@ -567,7 +567,7 @@ broadcastPlayingState() {
             player.ws.send(JSON.stringify({
                 type: "gameUpdate",
                 phase: "playing",
-                trump: this.trump,
+                trumpCard: this.trumpCard,
                 pot: this.pot,
                 currentPlayer: this.activePlayers[this.currentPlayerIndex].id,
                 tricks: this.tricks,
@@ -1187,7 +1187,7 @@ async handlePlayerLeave(playerId) {
                 player.ws.send(JSON.stringify({
                     type: "gameUpdate",
                     phase: this.phase,
-                    trump: this.trump,
+                    trumpCard: this.trumpCard,
                     trumpCard: this.trumpCard,
                     yourCards: this.hands.get(player.id),
                     tricks: this.tricks
